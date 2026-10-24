@@ -906,7 +906,7 @@ export function App() {
         if (recorder && recorder.state !== "inactive") {
           await new Promise<void>(resolve => {
             const original = recorder!.onstop;
-            recorder!.onstop = async event => { try { if (typeof original === "function") await original.call(recorder, event); } finally { resolve(); } };
+            recorder!.onstop = async event => { try { if (typeof original === "function") await original.call(recorder!, event); } finally { resolve(); } };
             recorder!.stop();
           });
         }
