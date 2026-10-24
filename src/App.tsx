@@ -273,6 +273,8 @@ export function App() {
           await pc.setRemoteDescription(new RTCSessionDescription(payload.sdp));
           await applyPendingIce(remoteId, pc);
         }
+      } else if (payload.kind === "renegotiate-request") {
+        if (peerIdRef.current.localeCompare(remoteId) < 0) await makeOffer(remoteId);
       } else if (payload.kind === "ice" && payload.candidate) {
         if (pc.remoteDescription) {
           await pc.addIceCandidate(new RTCIceCandidate(payload.candidate));
@@ -450,6 +452,7 @@ export function App() {
         pcsRef.current.forEach((pc, remoteId) => {
           pc.addTrack(track, localStreamRef.current!);
           if (peerIdRef.current.localeCompare(remoteId) < 0) void makeOffer(remoteId);
+          else void sendSignal({ to: remoteId, kind: "renegotiate-request" });
         });
         setMuted(false);
         await trackPresence({ micOn: true });
@@ -517,7 +520,12 @@ export function App() {
         const sender = pc.getSenders().find((item) => item.track?.kind === "video");
         if (sender) void sender.replaceTrack(track);
         else if (localStreamRef.current) {
-          sender || pc.addTrack(track, share);
+          pc.addTrack(track, share);
+          const remoteId = Array.from(pcsRef.current.entries()).find(([, value]) => value === pc)?.[0];
+          if (remoteId) {
+            if (peerIdRef.current.localeCompare(remoteId) < 0) void makeOffer(remoteId);
+            else void sendSignal({ to: remoteId, kind: "renegotiate-request" });
+          }
         }
       });
       track.onended = () => {
@@ -637,8 +645,8 @@ export function App() {
                 <button type="button" className={!cameraOn ? "controlButton isOff" : "controlButton"} onClick={() => void toggleCamera()} title={cameraOn ? "Turn camera off" : "Turn camera on"}><span>{cameraOn ? <Video size={19}/> : <VideoOff size={19}/>}</span><small>Camera</small></button>
                 <button type="button" className={sharingScreen ? "controlButton activeControl" : "controlButton"} onClick={() => void toggleScreenShare()} title={sharingScreen ? "Stop sharing" : "Share screen"}><span><MonitorUp size={19}/></span><small>{sharingScreen ? "Stop share" : "Share"}</small></button>
                 <button type="button" className={raised ? "controlButton activeControl" : "controlButton"} onClick={() => void raiseHand()} title={raised ? "Lower hand" : "Raise hand"}><span>✋</span><small>{raised ? "Lower hand" : "Raise"}</small></button>
-                <button type="button" className={activePanel === "people" ? "controlButton activeControl" : "controlButton"} onClick={() => {setActivePanel(activePanel === "people" ? "chat" : "people");setChatUnread(0)}} title="Participants"><span><Users size={19}/></span><small>People <b>{totalParticipants}</b></small></button>
-                <button type="button" className={activePanel === "chat" ? "controlButton activeControl" : "controlButton"} onClick={() => {setActivePanel(activePanel === "chat" ? "people" : "chat");setChatUnread(0)}} title="Meeting chat"><span><MessageCircle size={19}/>{chatUnread>0&&<i className="unreadDot"/>}</span><small>Chat</small></button>
+                <button type="button" className={activePanel === "people" ? "controlButton activeControl" : "controlButton"} onClick={() => {setActivePanel("people");setChatUnread(0)}} title="Participants"><span><Users size={19}/></span><small>People <b>{totalParticipants}</b></small></button>
+                <button type="button" className={activePanel === "chat" ? "controlButton activeControl" : "controlButton"} onClick={() => {setActivePanel("chat");setChatUnread(0)}} title="Meeting chat"><span><MessageCircle size={19}/>{chatUnread>0&&<i className="unreadDot"/>}</span><small>Chat</small></button>
                 <button type="button" className="endCallButton" onClick={() => void leaveMeeting(isHost)} title={isHost ? "End meeting for everyone" : "Leave meeting"}><PhoneOff size={19}/><small>{isHost ? "End" : "Leave"}</small></button>
               </div>
               <div className="dockRight"><button type="button" className="dockIcon" onClick={() => setShowSettings(true)} title="Device and connection settings"><Settings2 size={18}/></button><button type="button" className="dockIcon" onClick={() => setShowInvite(true)} title="Meeting details"><MoreHorizontal size={19}/></button></div>
