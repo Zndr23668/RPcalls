@@ -145,7 +145,7 @@ export function App() {
   const channelRef = useRef<any>(null);
   const peerIdRef = useRef("");
   const identityRef = useRef<{ peerId: string; name: string; isHost: boolean }>({ peerId: "", name: "", isHost: false });
-  const presenceRef = useRef({ micOn: true, cameraOn: true, raised: false });
+  const presenceRef = useRef({ micOn: true, cameraOn: true, raised: false, admitted: false });
   const localStreamRef = useRef<MediaStream | null>(null);
   const screenStreamRef = useRef<MediaStream | null>(null);
   const pcsRef = useRef<Map<string, RTCPeerConnection>>(new Map());
@@ -156,6 +156,7 @@ export function App() {
   const fileChooserRef = useRef<HTMLInputElement | null>(null);
   const fileSendInputRef = useRef<HTMLInputElement | null>(null);
   const hostPeerIdRef = useRef("");
+  const isAdmittedRef = useRef(false);
   const dataChannelsRef = useRef<Map<string, RTCDataChannel>>(new Map());
   const incomingFilesRef = useRef<Map<string, any>>(new Map());
   const saveDirectoryHandleRef = useRef<any>(null);
@@ -256,7 +257,7 @@ export function App() {
     const host = list.find((person) => person.isHost && person.admitted !== false);
     hostPeerIdRef.current = host?.peerId || (identityRef.current.isHost ? peerIdRef.current : "");
     for (const person of list) {
-      if (person.peerId !== peerIdRef.current && person.admitted !== false && peerIdRef.current.localeCompare(person.peerId) < 0) {
+      if (isAdmittedRef.current && person.peerId !== peerIdRef.current && person.admitted !== false && peerIdRef.current.localeCompare(person.peerId) < 0) {
         void makeOffer(person.peerId);
       }
     }
@@ -462,6 +463,8 @@ export function App() {
     pcsRef.current.clear();
     makingOfferRef.current.clear();
     pendingIceRef.current.clear();
+    dataChannelsRef.current.clear();
+    incomingFilesRef.current.clear();
     remoteStreamsRef.current.clear();
     localStreamRef.current?.getTracks().forEach((track) => track.stop());
     screenStreamRef.current?.getTracks().forEach((track) => track.stop());
@@ -470,9 +473,20 @@ export function App() {
     setLocalStream(null);
     setScreenStream(null);
     setRemoteStreams({});
+    if (backgroundProcessorRef.current?.segmenter) { try { void backgroundProcessorRef.current.segmenter.close(); } catch { /* cleanup */ } }
+    if (backgroundProcessorRef.current?.stream) backgroundProcessorRef.current.stream.getTracks().forEach((track: MediaStreamTrack) => track.stop());
+    if (backgroundProcessorRef.current?.video) { try { backgroundProcessorRef.current.video.pause(); backgroundProcessorRef.current.video.srcObject = null; } catch { /* cleanup */ } }
+    backgroundProcessorRef.current = null;
+    processedVideoStreamRef.current?.getTracks().forEach((track) => track.stop());
+    processedVideoStreamRef.current = null;
+    setProcessedVideoStream(null);
+    setBackgroundEffect("none");
+    setFileTransfers([]);
     setParticipants([]);
     setMessages([]);
     setJoined(false);
+    setIsAdmitted(false);
+    isAdmittedRef.current = false;
     setPeerId("");
     peerIdRef.current = "";
     identityRef.current = { peerId: "", name: "", isHost: false };
@@ -484,7 +498,7 @@ export function App() {
     setBusy(false);
   };
 
-  const joinRoom = async (targetRoomId: string, hostOverride = false, mode: "meeting" | "chat" = roomMode) => {
+  const joinRoom = async (targetRoomId: string, hostOverride = false, mode: "meeting" | "chat" = roomMode, titleOverride?: string) => {
     if (!targetRoomId || joined || busy) return;
     if (!supabase || !realtimeConfigured) {
       setMediaWarning("RPcalls is missing its Realtime connection settings. Ask the app administrator to configure Supabase.");
@@ -496,14 +510,23 @@ export function App() {
     const host = hostOverride || (() => {
       try { return Boolean(sessionStorage.getItem(hostStorageKey(targetRoomId))); } catch { return false; }
     })();
+    const admitted = host || mode === "chat";
+    const title = safeName(titleOverride || meetingTitle || "RPcalls meeting") || "RPcalls meeting";
     setBusy(true);
     setMediaWarning("");
     setRoomId(targetRoomId);
     setRoomMode(mode);
     setIsHost(host);
+    setIsAdmitted(admitted);
+    isAdmittedRef.current = admitted;
+    setJoinDenied(false);
+    setMeetingTitle(title);
     setDisplayName(cleanName);
+    presenceRef.current = { micOn: true, cameraOn: true, raised: false, admitted };
     try { localStorage.setItem("rpcalls:name", cleanName); } catch { /* optional */ }
-    history.replaceState(null, "", `/?${mode === "chat" ? "chat" : "meeting"}=${encodeURIComponent(targetRoomId)}`);
+    const params = new URLSearchParams({ [mode === "chat" ? "chat" : "meeting"]: targetRoomId });
+    if (mode === "meeting") params.set("title", title);
+    history.replaceState(null, "", `/?${params.toString()}`);
     peerIdRef.current = thisPeerId;
     identityRef.current = { peerId: thisPeerId, name: cleanName, isHost: host };
     setPeerId(thisPeerId);
@@ -528,7 +551,7 @@ export function App() {
     const hasVideo = Boolean(stream?.getVideoTracks().some((track) => track.enabled));
     setMuted(!hasAudio);
     setCameraOn(hasVideo);
-    presenceRef.current = { micOn: hasAudio, cameraOn: hasVideo, raised: false };
+    presenceRef.current = { micOn: hasAudio, cameraOn: hasVideo, raised: false, admitted };
 
     const channel = supabase.channel(`rpcalls:meeting:${targetRoomId}`, {
       config: {
@@ -543,6 +566,26 @@ export function App() {
       .on("presence", { event: "join" }, () => refreshParticipants(channel))
       .on("presence", { event: "leave" }, () => refreshParticipants(channel))
       .on("broadcast", { event: "signal" }, ({ payload }: { payload: any }) => { void handleSignal(payload); })
+      .on("broadcast", { event: "guest-admission" }, async ({ payload }: { payload: { to?: string; action?: string } }) => {
+        if (!payload || payload.to !== peerIdRef.current) return;
+        if (payload.action === "admit") {
+          setIsAdmitted(true);
+          isAdmittedRef.current = true;
+          setJoinDenied(false);
+          await trackPresence({ admitted: true });
+          notify("The host admitted you to the meeting.");
+        } else if (payload.action === "deny") {
+          setJoinDenied(true);
+          void cleanupMeeting();
+          history.replaceState(null, "", "/");
+          setRoomId(null);
+          setRoomMode("meeting");
+          setIsHost(false);
+          setIsAdmitted(false);
+          isAdmittedRef.current = false;
+          notify("The host did not admit you.");
+        }
+      })
       .on("broadcast", { event: "chat-message" }, ({ payload }: { payload: ChatMessage }) => {
         if (!payload?.id || payload.from === peerIdRef.current) return;
         setMessages((current) => [...current.slice(-149), payload]);
@@ -555,6 +598,8 @@ export function App() {
         setRoomId(null);
         setRoomMode("meeting");
         setIsHost(false);
+        setIsAdmitted(false);
+        isAdmittedRef.current = false;
         notify(mode === "chat" ? "The chat room was ended." : "The organizer ended this meeting.");
       })
       .subscribe(async (status: string) => {
@@ -564,6 +609,7 @@ export function App() {
             peerId: thisPeerId,
             name: cleanName,
             isHost: host,
+            admitted,
             ...presenceRef.current,
             joinedAt: Date.now(),
           });
@@ -581,14 +627,66 @@ export function App() {
     setBusy(false);
   };
 
-  const createMeeting = async () => {
+  const createMeeting = () => {
+    setNewMeetingTitle("");
+    setNewMeetingDate(defaultMeetingDate());
+    setNewMeetingTime(defaultMeetingTime());
+    setShowCreateMeeting(true);
+  };
+
+  const startMeetingNow = async () => {
     const id = randomId(20);
+    const title = safeName(newMeetingTitle) || "Untitled meeting";
+    const startedAt = Date.now();
+    const entry: MeetingEntry = { id, title, startAt: startedAt, createdAt: startedAt, status: "started", mode: "meeting" };
+    setCalendarItems((items) => [entry, ...items.filter((item) => item.id !== id)].slice(0, 200));
+    setShowCreateMeeting(false);
+    setMeetingTitle(title);
     try { sessionStorage.setItem(hostStorageKey(id), randomId(24)); } catch { /* host marker is optional */ }
     setRoomId(id);
+    setRoomMode("meeting");
     setIsHost(true);
     setMessages([]);
     setParticipants([]);
-    await joinRoom(id, true, "meeting");
+    await joinRoom(id, true, "meeting", title);
+  };
+
+  const scheduleMeeting = () => {
+    const title = safeName(newMeetingTitle) || "Untitled meeting";
+    const startAt = new Date(`${newMeetingDate}T${newMeetingTime}`).getTime();
+    if (!Number.isFinite(startAt)) { notify("Choose a valid meeting date and time."); return; }
+    const id = randomId(20);
+    const entry: MeetingEntry = { id, title, startAt, createdAt: Date.now(), status: "scheduled", mode: "meeting" };
+    setCalendarItems((items) => [...items, entry].sort((a, b) => a.startAt - b.startAt).slice(-200));
+    setCalendarMonth(new Date(new Date(startAt).getFullYear(), new Date(startAt).getMonth(), 1));
+    setMeetingTab("meetings");
+    setShowCreateMeeting(false);
+    notify("Meeting scheduled in this browser's RPcalls calendar.");
+  };
+
+  const openScheduledMeeting = async (entry: MeetingEntry) => {
+    setMeetingTitle(entry.title);
+    setRoomId(entry.id);
+    setRoomMode("meeting");
+    setIsHost(true);
+    try { sessionStorage.setItem(hostStorageKey(entry.id), randomId(24)); } catch { /* host marker is optional */ }
+    setCalendarItems((items) => items.map((item) => item.id === entry.id ? { ...item, status: "started" } : item));
+    setMessages([]);
+    setParticipants([]);
+    await joinRoom(entry.id, true, "meeting", entry.title);
+  };
+
+  const admitGuest = async (targetPeerId: string) => {
+    if (!identityRef.current.isHost || !channelRef.current) return;
+    await channelRef.current.send({ type: "broadcast", event: "guest-admission", payload: { to: targetPeerId, action: "admit" } });
+    setParticipants((items) => items.map((person) => person.peerId === targetPeerId ? { ...person, admitted: true } : person));
+    notify("Guest admitted.");
+  };
+
+  const denyGuest = async (targetPeerId: string) => {
+    if (!identityRef.current.isHost || !channelRef.current) return;
+    await channelRef.current.send({ type: "broadcast", event: "guest-admission", payload: { to: targetPeerId, action: "deny" } });
+    notify("Guest removed from the waiting room.");
   };
 
   const createChat = async () => {
