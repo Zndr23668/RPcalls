@@ -133,6 +133,11 @@ export function App() {
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState("");
   const [mediaWarning, setMediaWarning] = useState("");
+  const [recordingStatus, setRecordingStatus] = useState<"off" | "starting" | "recording" | "uploading" | "saved" | "error">("off");
+  const [recordingError, setRecordingError] = useState("");
+  const recordingStartedRoomRef = useRef<string | null>(null);
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const stopRecordingRef = useRef<(() => Promise<void>) | null>(null);
   const [showInvite, setShowInvite] = useState(false);
   const [inviteCopied, setInviteCopied] = useState(false);
   const [meetingTab, setMeetingTab] = useState<"overview" | "meetings" | "chats">("overview");
@@ -574,6 +579,14 @@ export function App() {
       .on("presence", { event: "sync" }, () => refreshParticipants(channel))
       .on("presence", { event: "join" }, () => refreshParticipants(channel))
       .on("presence", { event: "leave" }, () => refreshParticipants(channel))
+      .on("broadcast", { event: "recording-state" }, ({ payload }: { payload: { active?: boolean; status?: string } }) => {
+        if (payload?.active) {
+          setRecordingStatus("recording");
+          setNotice("This meeting is being recorded by the host.");
+        } else {
+          setRecordingStatus("off");
+        }
+      })
       .on("broadcast", { event: "signal" }, ({ payload }: { payload: any }) => { void handleSignal(payload); })
       .on("broadcast", { event: "guest-admission" }, async ({ payload }: { payload: { to?: string; action?: string } }) => {
         if (!payload || payload.to !== peerIdRef.current) return;
@@ -709,6 +722,206 @@ export function App() {
     await joinRoom(id, true, "chat");
   };
 
+
+  const recordingApi = async (body: Record<string, unknown>) => {
+    const baseUrl = import.meta.env.VITE_SUPABASE_URL as string | undefined;
+    const publicKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY as string | undefined;
+    if (!baseUrl || !publicKey) throw new Error("Supabase recording endpoint is not configured.");
+    const response = await fetch(`${baseUrl.replace(/\\/$/, "")}/functions/v1/rpcalls-recording`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", apikey: publicKey, Authorization: `Bearer ${publicKey}` },
+      body: JSON.stringify(body),
+    });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok || !data.success) throw new Error(data.error || "Recording storage request failed.");
+    return data as { success: boolean; uploadUrl?: string; objectPath?: string };
+  };
+
+  const beginHostRecording = async (targetRoomId: string, title: string) => {
+    if (!isHost || roomMode !== "meeting" || recordingStartedRoomRef.current === targetRoomId) return;
+    if (!("MediaRecorder" in window) || !HTMLCanvasElement.prototype.captureStream) {
+      setRecordingStatus("error");
+      setRecordingError("This browser cannot record the meeting. Please use a recent version of Chrome or Edge.");
+      return;
+    }
+    const hostToken = (() => { try { return sessionStorage.getItem(hostStorageKey(targetRoomId)) || ""; } catch { return ""; } })();
+    if (!hostToken) {
+      setRecordingStatus("error");
+      setRecordingError("The host recording key is missing. Reopen this meeting from the host browser.");
+      return;
+    }
+    setRecordingStatus("starting");
+    setRecordingError("");
+    let audioContext: AudioContext | null = null;
+    let animationFrame = 0;
+    let canvasStream: MediaStream | null = null;
+    let recordingStream: MediaStream | null = null;
+    const chunks: Blob[] = [];
+    const videos = new Map<string, HTMLVideoElement>();
+    const audioSources = new Map<string, { stream: MediaStream; source: MediaStreamAudioSourceNode }>();
+    let recorder: MediaRecorder | null = null;
+    let canvas: HTMLCanvasElement | null = null;
+    let canvasContext: CanvasRenderingContext2D | null = null;
+    let audioDestination: MediaStreamAudioDestinationNode | null = null;
+    let stopped = false;
+
+    const release = () => {
+      if (stopped) return;
+      stopped = true;
+      cancelAnimationFrame(animationFrame);
+      videos.forEach(video => { video.pause(); video.srcObject = null; });
+      videos.clear();
+      audioSources.forEach(item => { try { item.source.disconnect(); } catch { /* already disconnected */ } });
+      audioSources.clear();
+      canvasStream?.getTracks().forEach(track => track.stop());
+      recordingStream?.getTracks().forEach(track => track.stop());
+      if (audioContext && audioContext.state !== "closed") void audioContext.close();
+      mediaRecorderRef.current = null;
+      stopRecordingRef.current = null;
+      recordingStartedRoomRef.current = null;
+    };
+
+    try {
+      await recordingApi({ action: "start", meetingId: targetRoomId, title, hostToken, startedAt: new Date().toISOString() });
+      audioContext = new AudioContext();
+      audioDestination = audioContext.createMediaStreamDestination();
+      canvas = document.createElement("canvas");
+      canvas.width = 1280;
+      canvas.height = 720;
+      canvasContext = canvas.getContext("2d");
+      if (!canvasContext) throw new Error("Could not initialize the meeting recording canvas.");
+      canvasStream = canvas.captureStream(24);
+      recordingStream = new MediaStream([
+        ...canvasStream.getVideoTracks(),
+        ...audioDestination.stream.getAudioTracks(),
+      ]);
+
+      const ensureStream = (id: string, stream: MediaStream | null) => {
+        if (!stream) return;
+        const existing = audioSources.get(id);
+        if (existing?.stream === stream) return;
+        if (existing) { try { existing.source.disconnect(); } catch { /* already disconnected */ } }
+        if (stream.getAudioTracks().length) {
+          const source = audioContext!.createMediaStreamSource(new MediaStream(stream.getAudioTracks()));
+          source.connect(audioDestination!);
+          audioSources.set(id, { stream, source });
+        }
+        if (stream.getVideoTracks().length) {
+          let video = videos.get(id);
+          if (!video) {
+            video = document.createElement("video");
+            video.autoplay = true;
+            video.muted = true;
+            video.playsInline = true;
+            videos.set(id, video);
+          }
+          if (video.srcObject !== stream) {
+            video.srcObject = stream;
+            void video.play().catch(() => undefined);
+          }
+        }
+      };
+
+      const drawFrame = () => {
+        if (!canvasContext || !canvas) return;
+        ensureStream("host", localStreamRef.current);
+        remoteStreamsRef.current.forEach((stream, id) => ensureStream(id, stream));
+        const tiles = Array.from(videos.entries()).filter(([, video]) => video.readyState >= HTMLMediaElement.HAVE_CURRENT_DATA && video.videoWidth > 0);
+        canvasContext.fillStyle = "#111827";
+        canvasContext.fillRect(0, 0, canvas.width, canvas.height);
+        canvasContext.fillStyle = "#f9fafb";
+        canvasContext.font = "600 26px sans-serif";
+        canvasContext.fillText(title.slice(0, 70), 32, 42);
+        if (!tiles.length) {
+          canvasContext.font = "28px sans-serif";
+          canvasContext.fillText("RPcalls meeting recording", 32, 100);
+        } else {
+          const cols = tiles.length === 1 ? 1 : 2;
+          const rows = Math.ceil(tiles.length / cols);
+          const top = 68;
+          const gap = 12;
+          const tileW = (canvas.width - gap * (cols + 1)) / cols;
+          const tileH = (canvas.height - top - gap * (rows + 1)) / rows;
+          tiles.forEach(([id, video], index) => {
+            const x = gap + (index % cols) * (tileW + gap);
+            const y = top + Math.floor(index / cols) * (tileH + gap);
+            const scale = Math.max(tileW / video.videoWidth, tileH / video.videoHeight);
+            const sw = tileW / scale, sh = tileH / scale;
+            const sx = (video.videoWidth - sw) / 2, sy = (video.videoHeight - sh) / 2;
+            canvasContext!.save();
+            canvasContext!.beginPath();
+            canvasContext!.roundRect(x, y, tileW, tileH, 14);
+            canvasContext!.clip();
+            canvasContext!.drawImage(video, sx, sy, sw, sh, x, y, tileW, tileH);
+            canvasContext!.restore();
+            canvasContext!.fillStyle = "rgba(0,0,0,.62)";
+            canvasContext!.fillRect(x + 10, y + tileH - 38, Math.min(tileW - 20, 240), 28);
+            canvasContext!.fillStyle = "#ffffff";
+            canvasContext!.font = "16px sans-serif";
+            canvasContext!.fillText(id === "host" ? (displayName || "Host") : (participants.find(person => person.peerId === id)?.name || "Participant"), x + 20, y + tileH - 19);
+          });
+        }
+        animationFrame = requestAnimationFrame(drawFrame);
+      };
+      drawFrame();
+      const mimeType = ["video/webm;codecs=vp9,opus", "video/webm;codecs=vp8,opus", "video/webm"].find(type => MediaRecorder.isTypeSupported(type));
+      recorder = new MediaRecorder(recordingStream, { ...(mimeType ? { mimeType } : {}), videoBitsPerSecond: 1_500_000, audioBitsPerSecond: 128_000 });
+      recorder.ondataavailable = event => { if (event.data.size) chunks.push(event.data); };
+      recorder.onerror = () => {
+        setRecordingStatus("error");
+        setRecordingError("The browser encountered an error while recording this meeting.");
+      };
+      recorder.onstop = async () => {
+        try {
+          setRecordingStatus("uploading");
+          const blob = new Blob(chunks, { type: recorder?.mimeType || "video/webm" });
+          if (!blob.size) throw new Error("The recording was empty.");
+          if (blob.size > 500 * 1024 * 1024) throw new Error("This recording exceeds the 500 MB upload limit. Shorten the meeting or lower recording quality.");
+          const fileName = `${safeFileName(title)}-${targetRoomId}.webm`;
+          const signed = await recordingApi({
+            action: "upload-url", meetingId: targetRoomId, hostToken, fileName,
+            size: blob.size, contentType: blob.type || "video/webm", endedAt: new Date().toISOString(),
+          });
+          if (!signed.uploadUrl || !signed.objectPath) throw new Error("The storage service did not return an upload link.");
+          const uploadResponse = await fetch(signed.uploadUrl, { method: "PUT", headers: { "Content-Type": blob.type || "video/webm" }, body: blob });
+          if (!uploadResponse.ok) throw new Error(`Backblaze upload failed (HTTP ${uploadResponse.status}).`);
+          await recordingApi({ action: "complete", meetingId: targetRoomId, hostToken, objectPath: signed.objectPath, size: blob.size, contentType: blob.type || "video/webm", endedAt: new Date().toISOString() });
+          setRecordingStatus("saved");
+          setNotice("Meeting recording saved securely to Backblaze B2.");
+          if (channelRef.current) {
+            try { await channelRef.current.send({ type: "broadcast", event: "recording-state", payload: { active: false, status: "saved" } }); } catch { /* status indicator only */ }
+          }
+        } catch (error) {
+          setRecordingStatus("error");
+          setRecordingError(error instanceof Error ? error.message : "Could not save the meeting recording.");
+        } finally {
+          release();
+        }
+      };
+      recorder.start(10_000);
+      mediaRecorderRef.current = recorder;
+      recordingStartedRoomRef.current = targetRoomId;
+      stopRecordingRef.current = async () => {
+        if (recorder && recorder.state !== "inactive") {
+          await new Promise<void>(resolve => {
+            const original = recorder!.onstop;
+            recorder!.onstop = async event => { try { if (typeof original === "function") await original.call(recorder, event); } finally { resolve(); } };
+            recorder!.stop();
+          });
+        }
+      };
+      setRecordingStatus("recording");
+      setNotice("Recording started automatically. Everyone in the meeting can see the recording indicator.");
+      if (channelRef.current) {
+        try { await channelRef.current.send({ type: "broadcast", event: "recording-state", payload: { active: true, status: "recording" } }); } catch { /* indicator only */ }
+      }
+    } catch (error) {
+      release();
+      setRecordingStatus("error");
+      setRecordingError(error instanceof Error ? error.message : "Could not start meeting recording.");
+    }
+  };
+
   const leaveMeeting = async (endForEveryone = false) => {
     const leavingRoomId = roomId;
     const endingAsHost = Boolean(endForEveryone && isHost);
@@ -717,6 +930,9 @@ export function App() {
       try {
         await channel.send({ type: "broadcast", event: "meeting-ended", payload: { by: peerIdRef.current } });
       } catch { /* participant cleanup continues */ }
+    }
+    if (isHost && stopRecordingRef.current) {
+      try { await stopRecordingRef.current(); } catch { /* upload status is shown in the recording indicator */ }
     }
     await cleanupMeeting();
     if (endingAsHost && leavingRoomId) {
@@ -1111,6 +1327,12 @@ export function App() {
     setMeetingTab("overview");
   };
 
+  useEffect(() => {
+    if (joined && roomId && roomMode === "meeting" && isHost && isAdmitted && recordingStartedRoomRef.current !== roomId && recordingStatus !== "error") {
+      void beginHostRecording(roomId, meetingTitle);
+    }
+  }, [joined, roomId, roomMode, isHost, isAdmitted, meetingTitle, recordingStatus]);
+
   const remoteParticipants = participants.filter((person) => person.peerId !== peerId);
   const localPreview = screenStream || localStream;
   const totalParticipants = Math.max(participants.length, joined ? 1 : 0);
@@ -1168,6 +1390,8 @@ export function App() {
             <strong>{roomMode === "chat" ? "RPcalls chat" : meetingTitle}</strong>
             {roomMode === "meeting" && <small className="meetingIdLabel">ID: {roomId.slice(0, 12).toUpperCase()}</small>}
             <span><span className="liveDot" />{connectionState} <i>·</i> {totalParticipants} participant{totalParticipants === 1 ? "" : "s"}</span>
+            {roomMode === "meeting" && recordingStatus === "recording" && <span className="recordingBadge"><span /> RECORDING</span>}
+            {roomMode === "meeting" && recordingStatus === "uploading" && <span className="recordingBadge uploadingBadge">SAVING RECORDING…</span>}
           </div>
           <div className="meetingTopActions">
             <button className="outlineButton" type="button" onClick={shareInvite}><UserRoundPlus size={16} /> Invite</button>
@@ -1177,6 +1401,7 @@ export function App() {
         </header>
         <main className={`meetingWorkspace ${activePanel ? "panelOpen" : ""}`}>
           <section className="meetingStage">
+            {recordingStatus === "error" && <div className="inlineAlert recordingAlert"><AlertCircle size={16}/><span>Recording could not be saved: {recordingError}</span></div>}
             <div className="stageHeading">
               <div><p className="eyebrow">{roomMode === "chat" ? "LIVE CHAT" : "LIVE MEETING"}</p><h1>{roomMode === "chat" ? "Your conversation is ready." : meetingTitle}</h1><p>{roomMode === "chat" ? "Share this link to bring someone into the conversation." : "Meeting ID: " + roomId.slice(0, 12).toUpperCase() + " · Share your link to invite guests."}</p></div>
               <button className="subtleButton" type="button" onClick={() => setShowInvite(true)}><Link2 size={15} /> Meeting info</button>
@@ -1187,7 +1412,9 @@ export function App() {
               {allTiles.length === 1 && <button type="button" className="emptyGuestCard" onClick={() => setShowInvite(true)}><span className="emptyGuestIcon"><UserRoundPlus size={24} /></span><strong>You're the first one here</strong><span>{roomMode === "chat" ? "Share this chat link to start messaging with someone." : "Invite someone outside your organization with a link."}</span><b>Invite a guest <Plus size={14}/></b></button>}
             </div>
             <div className="meetingControlDock">
-              <div className="dockLeft"><span className="meetingTime"><Wifi size={14}/>{connectionState}</span></div>
+              <div className="dockLeft"><span className="meetingTime"><Wifi size={14}/>{connectionState}</span>
+                {recordingStatus === "error" && <span className="recordingErrorHint" title={recordingError || "Recording failed"}><AlertCircle size={14}/> Recording failed</span>}
+              </div>
               <div className="callControls">
                 <button type="button" className={muted ? "controlButton isOff" : "controlButton"} onClick={() => void toggleMicrophone()} title={muted ? "Turn microphone on" : "Mute microphone"}><span>{muted ? <MicOff size={19}/> : <Mic size={19}/>}</span><small>{muted ? "Unmute" : "Mute"}</small></button>
                 <button type="button" className={!cameraOn ? "controlButton isOff" : "controlButton"} onClick={() => void toggleCamera()} title={cameraOn ? "Turn camera off" : "Turn camera on"}><span>{cameraOn ? <Video size={19}/> : <VideoOff size={19}/>}</span><small>Camera</small></button>
