@@ -727,7 +727,7 @@ export function App() {
     const baseUrl = import.meta.env.VITE_SUPABASE_URL as string | undefined;
     const publicKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY as string | undefined;
     if (!baseUrl || !publicKey) throw new Error("Supabase recording endpoint is not configured.");
-    const response = await fetch(`${baseUrl.replace(/\\/$/, "")}/functions/v1/rpcalls-recording`, {
+    const response = await fetch(`${baseUrl.replace(/\/$/, "")}/functions/v1/rpcalls-recording`, {
       method: "POST",
       headers: { "Content-Type": "application/json", apikey: publicKey, Authorization: `Bearer ${publicKey}` },
       body: JSON.stringify(body),
