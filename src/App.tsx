@@ -1116,6 +1116,25 @@ export function App() {
     return grouped;
   }, [calendarItems]);
 
+  if (joined && roomId && roomMode === "meeting" && !isAdmitted) {
+    return (
+      <div className="joinPage">
+        <header className="joinHeader"><a className="brandLink" href="/" onClick={(e)=>{e.preventDefault();void leaveMeeting(false)}}><span className="brandMark">RP</span><strong>RPcalls</strong></a><span className="joinHeaderSecure"><ShieldCheck size={15}/> Guest waiting room</span></header>
+        <main className="joinGrid waitingGrid">
+          <section className="joinCard waitingCard">
+            <div className="dialogIcon waitingPulse"><Clock3 size={24}/></div>
+            <p className="eyebrow">WAITING ROOM</p>
+            <h1>{meetingTitle}</h1>
+            <p className="joinDescription">You’re in the waiting room. The organizer will be notified and must admit you before you can join the meeting.</p>
+            <div className="waitingStatus"><span className="liveDot"/><span>Waiting for the host to let you in…</span></div>
+            <button className="secondaryButton waitingLeave" type="button" onClick={() => void leaveMeeting(false)}><ArrowLeft size={15}/> Leave waiting room</button>
+          </section>
+          <aside className="joinAside"><div className="joinQuote"><ShieldCheck size={18}/><h2>Almost there.</h2><p>Keep this tab open. When the organizer admits you, the meeting will open automatically.</p></div><div className="joinFeature"><span><Users size={17}/></span><div><strong>Host-controlled access</strong><small>You’ll enter once the organizer approves.</small></div></div></aside>
+        </main>
+      </div>
+    );
+  }
+
   if (joined && roomId) {
     const allTiles = [
       { id: peerId, name: identityRef.current.name || displayName || "You", stream: localPreview, local: true, cameraOn: sharingScreen || cameraOn, host: isHost },
@@ -1130,7 +1149,8 @@ export function App() {
         <header className="meetingTopbar">
           <div className="brandMark smallMark">RP</div>
           <div className="meetingTitleBlock">
-            <strong>{roomMode === "chat" ? "RPcalls chat" : "RPcalls meeting"}</strong>
+            <strong>{roomMode === "chat" ? "RPcalls chat" : meetingTitle}</strong>
+            {roomMode === "meeting" && <small className="meetingIdLabel">ID: {roomId.slice(0, 12).toUpperCase()}</small>}
             <span><span className="liveDot" />{connectionState} <i>·</i> {totalParticipants} participant{totalParticipants === 1 ? "" : "s"}</span>
           </div>
           <div className="meetingTopActions">
@@ -1142,7 +1162,7 @@ export function App() {
         <main className={`meetingWorkspace ${activePanel ? "panelOpen" : ""}`}>
           <section className="meetingStage">
             <div className="stageHeading">
-              <div><p className="eyebrow">{roomMode === "chat" ? "LIVE CHAT" : "LIVE MEETING"}</p><h1>{roomMode === "chat" ? "Your conversation is ready." : "Good conversations start here."}</h1><p>Share your link to bring someone into the room.</p></div>
+              <div><p className="eyebrow">{roomMode === "chat" ? "LIVE CHAT" : "LIVE MEETING"}</p><h1>{roomMode === "chat" ? "Your conversation is ready." : meetingTitle}</h1><p>{roomMode === "chat" ? "Share this link to bring someone into the conversation." : "Meeting ID: " + roomId.slice(0, 12).toUpperCase() + " · Share your link to invite guests."}</p></div>
               <button className="subtleButton" type="button" onClick={() => setShowInvite(true)}><Link2 size={15} /> Meeting info</button>
             </div>
             {mediaWarning && <div className="inlineAlert"><AlertCircle size={16} /><span>{mediaWarning}</span><button type="button" onClick={() => setMediaWarning("")}><X size={14} /></button></div>}
@@ -1184,13 +1204,19 @@ export function App() {
                 </div>
                 <form className="chatComposer" onSubmit={sendChat}>
                   <textarea value={draft} onChange={(e) => setDraft(e.target.value)} placeholder="Type a message" rows={2} maxLength={1800} aria-label="Type a chat message" onKeyDown={(e) => {if(e.key==="Enter"&&!e.shiftKey){e.preventDefault();void sendChat(e as any)}}}/>
-                  <div className="composerActions"><span>Enter to send · Shift + Enter for a new line</span><button type="submit" disabled={!draft.trim()} aria-label="Send message"><Send size={16}/></button></div>
+                  <div className="composerActions"><span>Enter to send · Shift + Enter for a new line</span><div className="composerButtons"><button type="button" className="attachFileButton" onClick={() => fileSendInputRef.current?.click()} title={"Send a file "+(isHost?"to participants":"directly to host")} aria-label="Attach and send file"><Paperclip size={15}/></button><button type="submit" disabled={!draft.trim()} aria-label="Send message"><Send size={16}/></button></div></div>
+                  <input ref={fileSendInputRef} type="file" className="hiddenFileInput" onChange={(event)=>{const file=event.target.files?.[0];if(file)void sendFileToRoom(file);event.target.value="";}} />
                 </form>
               </>
             ) : (
               <div className="participantList">
-                {participants.map((person) => <div key={person.peerId} className="participantRow"><div className="participantAvatar">{person.name?.charAt(0)?.toUpperCase()||"G"}{person.raised&&<span>✋</span>}</div><div className="participantInfo"><strong>{person.peerId===peerId?"You":person.name||"Guest"}{person.isHost&&<span className="hostPill">Organizer</span>}</strong><small>{person.peerId===peerId?"Meeting device":person.micOn===false?"Microphone muted":"In the meeting"}</small></div><div className="participantStatus">{person.micOn===false?<MicOff size={15}/>:<Mic size={15}/>} {person.cameraOn===false?<VideoOff size={15}/>:<Video size={15}/>}</div></div>)}
+                {isHost && waitingParticipants.length > 0 && <section className="waitingGuests"><div className="waitingGuestsHeading"><span><Clock3 size={15}/></span><div><strong>Waiting to join</strong><small>{waitingParticipants.length} guest{waitingParticipants.length===1?"":"s"} need approval</small></div></div>{waitingParticipants.map((person)=><div className="waitingGuestRow" key={person.peerId}><div className="participantAvatar">{person.name?.charAt(0)?.toUpperCase()||"G"}</div><div className="participantInfo"><strong>{person.name||"Guest"}</strong><small>Waiting for admission</small></div><button type="button" className="admitButton" onClick={()=>void admitGuest(person.peerId)} title="Admit guest"><UserCheck size={15}/></button><button type="button" className="denyButton" onClick={()=>void denyGuest(person.peerId)} title="Deny guest"><UserX size={15}/></button></div>)}</section>}
+                {participants.filter((person) => person.admitted !== false || person.peerId === peerId).map((person) => <div key={person.peerId} className="participantRow"><div className="participantAvatar">{person.name?.charAt(0)?.toUpperCase()||"G"}{person.raised&&<span>✋</span>}</div><div className="participantInfo"><strong>{person.peerId===peerId?"You":person.name||"Guest"}{person.isHost&&<span className="hostPill">Organizer</span>}</strong><small>{person.peerId===peerId?"Meeting device":person.micOn===false?"Microphone muted":"In the meeting"}</small></div><div className="participantStatus">{person.micOn===false?<MicOff size={15}/>:<Mic size={15}/>} {person.cameraOn===false?<VideoOff size={15}/>:<Video size={15}/>}</div>{isHost&&person.peerId!==peerId&&person.admitted!==false&&<button type="button" className="participantMuteButton" title={"Mute "+person.name} aria-label={"Mute "+person.name} disabled={person.micOn===false} onClick={()=>void muteParticipant(person.peerId)}><MicOff size={14}/></button>}</div>)}
                 {!participants.length&&<p className="muted smallText">Connecting to meeting participants…</p>}
+                {isHost && <div className="autoSavePanel"><div className="autoSaveCopy"><FolderOpen size={16}/><div><strong>Auto-save received files</strong><small>{autoSaveFolderName ? "Folder: "+autoSaveFolderName : autoSaveSupported ? "Choose a folder to save incoming files automatically." : "This browser supports downloads only."}</small></div></div><button type="button" className="secondaryButton" onClick={()=>void chooseAutoSaveFolder()}><FolderOpen size={14}/>{autoSaveFolderName?"Change folder":"Choose folder"}</button></div>}
+                <input ref={fileSendInputRef} type="file" className="hiddenFileInput" onChange={(event)=>{const file=event.target.files?.[0];if(file)void sendFileToRoom(file);event.target.value="";}} />
+                <button type="button" className="invitePeopleButton" onClick={() => fileSendInputRef.current?.click()}><Paperclip size={16}/> Send file directly to {isHost?"guests":"host"}</button>
+                <div className="fileTransferList">{fileTransfers.slice(0,4).map((file)=><div className="fileTransferRow" key={file.id}><FileUp size={15}/><div><strong>{file.name}</strong><small>{Math.round(file.received/1024)} KB / {Math.ceil(file.size/1024)} KB · {file.status}</small></div><span className={"fileTransferStatus "+file.status}>{file.status==="saved"||file.status==="downloaded"?<Check size={13}/>:file.status==="error"?<AlertCircle size={13}/>:<span className="fileTransferSpinner"/>}</span></div>)}</div>
                 <button type="button" className="invitePeopleButton" onClick={() => setShowInvite(true)}><UserRoundPlus size={16}/> Invite someone</button>
               </div>
             )}
