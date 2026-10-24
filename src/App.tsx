@@ -398,7 +398,7 @@ export function App() {
         setRoomId(null);
         setRoomMode("meeting");
         setIsHost(false);
-        notify(roomMode === "chat" ? "The chat room was ended." : "The organizer ended this meeting.");
+        notify(mode === "chat" ? "The chat room was ended." : "The organizer ended this meeting.");
       })
       .subscribe(async (status: string) => {
         if (status === "SUBSCRIBED") {
@@ -595,7 +595,7 @@ export function App() {
       notify(roomMode === "chat" ? "Chat link copied — anyone with the link can join." : "Meeting link copied — anyone with the link can join.");
       setTimeout(() => setInviteCopied(false), 2200);
     } catch {
-      window.prompt("Copy this meeting link and send it to your guest:", link);
+      window.prompt(roomMode === "chat" ? "Copy this chat link and send it to your guest:" : "Copy this meeting link and send it to your guest:", link);
     }
   };
 
@@ -603,7 +603,7 @@ export function App() {
     if (!roomId) return;
     const url = currentRoomLink(roomId);
     if (navigator.share) {
-      try { await navigator.share({ title: "Join my RPcalls meeting", text: "Join my meeting using this link:", url }); return; } catch { /* user cancelled or share unavailable */ }
+      try { await navigator.share({ title: roomMode === "chat" ? "Join my RPcalls chat" : "Join my RPcalls meeting", text: roomMode === "chat" ? "Join my chat using this link:" : "Join my meeting using this link:", url }); return; } catch { /* user cancelled or share unavailable */ }
     }
     await copyInvite();
   };
@@ -706,7 +706,7 @@ export function App() {
             )}
           </aside>
         </main>
-        {showInvite && <div className="dialogScrim" onMouseDown={(e) => {if(e.target===e.currentTarget)setShowInvite(false)}}><section className="inviteDialog" role="dialog" aria-modal="true" aria-labelledby="inviteTitle"><button className="dialogClose" type="button" onClick={() => setShowInvite(false)} aria-label="Close"><X size={17}/></button><div className="dialogIcon"><Link2 size={22}/></div><p className="eyebrow">MEETING DETAILS</p><h2 id="inviteTitle">Invite anyone to RPcalls</h2><p className="dialogIntro">Send this link to colleagues, clients, or guests outside Remote Professionals. They can join from their browser without an RP account.</p><label className="fieldLabel">Meeting link<div className="copyLinkField"><input readOnly value={currentRoomLink()} aria-label="Meeting link"/><button type="button" onClick={() => void copyInvite()}>{inviteCopied?<Check size={16}/>:<Copy size={16}/>}<span>{inviteCopied?"Copied":"Copy"}</span></button></div></label><div className="guestAccessNote"><ShieldCheck size={17}/><span><strong>Anyone with the link can join.</strong> Treat the invitation as access to this meeting and share it only with intended participants.</span></div><div className="dialogActions"><button type="button" className="secondaryButton" onClick={() => setShowInvite(false)}>Done</button><button type="button" className="primaryButton" onClick={() => void shareInvite()}><Share2 size={16}/> Share invite</button></div></section></div>}
+        {showInvite && <div className="dialogScrim" onMouseDown={(e) => {if(e.target===e.currentTarget)setShowInvite(false)}}><section className="inviteDialog" role="dialog" aria-modal="true" aria-labelledby="inviteTitle"><button className="dialogClose" type="button" onClick={() => setShowInvite(false)} aria-label="Close"><X size={17}/></button><div className="dialogIcon"><Link2 size={22}/></div><p className="eyebrow">MEETING DETAILS</p><h2 id="inviteTitle">Invite anyone to RPcalls</h2><p className="dialogIntro">Send this link to colleagues, clients, or guests outside Remote Professionals. They can join from their browser without an RP account.</p><label className="fieldLabel">{roomMode === "chat" ? "Chat link" : "Meeting link"}<div className="copyLinkField"><input readOnly value={currentRoomLink()} aria-label={roomMode === "chat" ? "Chat link" : "Meeting link"}/><button type="button" onClick={() => void copyInvite()}>{inviteCopied?<Check size={16}/>:<Copy size={16}/>}<span>{inviteCopied?"Copied":"Copy"}</span></button></div></label><div className="guestAccessNote"><ShieldCheck size={17}/><span><strong>Anyone with the link can join.</strong> Treat the invitation as access to this meeting and share it only with intended participants.</span></div><div className="dialogActions"><button type="button" className="secondaryButton" onClick={() => setShowInvite(false)}>Done</button><button type="button" className="primaryButton" onClick={() => void shareInvite()}><Share2 size={16}/> Share invite</button></div></section></div>}
         {showSettings&&<div className="dialogScrim" onMouseDown={(e)=>{if(e.target===e.currentTarget)setShowSettings(false)}}><section className="settingsDialog" role="dialog" aria-modal="true" aria-labelledby="settingsTitle"><button className="dialogClose" type="button" onClick={()=>setShowSettings(false)} aria-label="Close"><X size={17}/></button><div className="dialogIcon"><Settings2 size={22}/></div><p className="eyebrow">DEVICE & CONNECTION</p><h2 id="settingsTitle">Meeting settings</h2><div className="settingsInfo"><div><strong>Realtime connection</strong><span>{realtimeConfigured?"Configured":"Not configured"}</span></div><div><strong>ICE servers</strong><span>{turnServers.length>1?"STUN + TURN":"STUN only"}</span></div><div><strong>Connection status</strong><span>{connectionState}</span></div></div><button type="button" className="turnHelpToggle" onClick={()=>setTurnHelp(!turnHelp)}><CircleHelp size={16}/> Why use a TURN server? <ChevronDown size={15}/></button>{turnHelp&&<p className="turnHelpText">STUN-only calls work on many networks, but strict corporate firewalls and some mobile networks require TURN relay. Add VITE_TURN_URLS, VITE_TURN_USERNAME, and VITE_TURN_CREDENTIAL to the Vercel environment to enable it.</p>}<div className="dialogActions"><button type="button" className="secondaryButton" onClick={()=>setShowSettings(false)}>Close</button></div></section></div>}
       </div>
     );
