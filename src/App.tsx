@@ -739,6 +739,7 @@ export function App() {
 
   const beginHostRecording = async (targetRoomId: string, title: string) => {
     if (!isHost || roomMode !== "meeting" || recordingStartedRoomRef.current === targetRoomId) return;
+    recordingStartedRoomRef.current = targetRoomId;
     if (!("MediaRecorder" in window) || !HTMLCanvasElement.prototype.captureStream) {
       setRecordingStatus("error");
       setRecordingError("This browser cannot record the meeting. Please use a recent version of Chrome or Edge.");
