@@ -498,6 +498,28 @@ export function App() {
     setBusy(false);
   };
 
+  const requestMeetingMedia = async () => {
+    let stream: MediaStream | null = null;
+    try {
+      stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: true });
+    } catch {
+      try {
+        stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
+        setMediaWarning("Camera access was unavailable, so you joined with audio only. You can adjust permissions in your browser.");
+      } catch {
+        setMediaWarning("Microphone/camera permission was not granted. You can still join, chat, and try enabling devices from the call controls.");
+      }
+    }
+    localStreamRef.current = stream;
+    setLocalStream(stream);
+    const hasAudio = Boolean(stream?.getAudioTracks().some((track) => track.enabled));
+    const hasVideo = Boolean(stream?.getVideoTracks().some((track) => track.enabled));
+    setMuted(!hasAudio);
+    setCameraOn(hasVideo);
+    presenceRef.current = { ...presenceRef.current, micOn: hasAudio, cameraOn: hasVideo };
+    return stream;
+  };
+
   const joinRoom = async (targetRoomId: string, hostOverride = false, mode: "meeting" | "chat" = roomMode, titleOverride?: string) => {
     if (!targetRoomId || joined || busy) return;
     if (!supabase || !realtimeConfigured) {
@@ -508,30 +530,17 @@ export function App() {
     const cleanName = safeName(displayName) || "Guest";
     const thisPeerId = randomId(12);
     const host = hostOverride || (() => {
-      try { return Boolean(sessionStorage.getItem(hostStorageKey(targetRoomId))); } catch { return false; }
-    })();
-    const admitted = host || mode === "chat";
-    const title = safeName(titleOverride || meetingTitle || "RPcalls meeting") || "RPcalls meeting";
-    setBusy(true);
-    setMediaWarning("");
-    setRoomId(targetRoomId);
-    setRoomMode(mode);
-    setIsHost(host);
-    hostPeerIdRef.current = host ? thisPeerId : "";
-    setIsAdmitted(admitted);
-    isAdmittedRef.current = admitted;
-    setJoinDenied(false);
-    setMeetingTitle(title);
-    setDisplayName(cleanName);
-    presenceRef.current = { micOn: true, cameraOn: true, raised: false, admitted };
-    try { localStorage.setItem("rpcalls:name", cleanName); } catch { /* optional */ }
-    const params = new URLSearchParams({ [mode === "chat" ? "chat" : "meeting"]: targetRoomId });
-    if (mode === "meeting") params.set("title", title);
-    history.replaceState(null, "", `/?${params.toString()}`);
-    peerIdRef.current = thisPeerId;
-    identityRef.current = { peerId: thisPeerId, name: cleanName, isHost: host };
-    setPeerId(thisPeerId);
-    let stream: MediaStream | null = null;
+      try { return Boolean(sessionStorage.getItem(hostStorageKey(targetRoomId))); } catch { re    if (mode === "meeting" && admitted) {
+      await requestMeetingMedia();
+    } else {
+      setMediaWarning("");
+      localStreamRef.current = null;
+      setLocalStream(null);
+      setMuted(true);
+      setCameraOn(false);
+    }
+    presenceRef.current = { ...presenceRef.current, admitted };
+ null = null;
     if (mode === "meeting") {
       try {
         stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: true });
@@ -570,10 +579,11 @@ export function App() {
       .on("broadcast", { event: "guest-admission" }, async ({ payload }: { payload: { to?: string; action?: string } }) => {
         if (!payload || payload.to !== peerIdRef.current) return;
         if (payload.action === "admit") {
+          if (mode === "meeting") await requestMeetingMedia();
           setIsAdmitted(true);
           isAdmittedRef.current = true;
           setJoinDenied(false);
-          await trackPresence({ admitted: true });
+          await trackPresence({ admitted: true, micOn: presenceRef.current.micOn, cameraOn: presenceRef.current.cameraOn });
           notify("The host admitted you to the meeting.");
         } else if (payload.action === "deny") {
           setJoinDenied(true);
