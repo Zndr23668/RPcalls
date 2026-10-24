@@ -609,7 +609,6 @@ export function App() {
             peerId: thisPeerId,
             name: cleanName,
             isHost: host,
-            admitted,
             ...presenceRef.current,
             joinedAt: Date.now(),
           });
