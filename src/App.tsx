@@ -517,6 +517,7 @@ export function App() {
     setRoomId(targetRoomId);
     setRoomMode(mode);
     setIsHost(host);
+    hostPeerIdRef.current = host ? thisPeerId : "";
     setIsAdmitted(admitted);
     isAdmittedRef.current = admitted;
     setJoinDenied(false);
@@ -700,6 +701,8 @@ export function App() {
   };
 
   const leaveMeeting = async (endForEveryone = false) => {
+    const leavingRoomId = roomId;
+    const endingAsHost = Boolean(endForEveryone && isHost);
     const channel = channelRef.current;
     if (endForEveryone && channel && isHost) {
       try {
@@ -707,10 +710,15 @@ export function App() {
       } catch { /* participant cleanup continues */ }
     }
     await cleanupMeeting();
+    if (endingAsHost && leavingRoomId) {
+      setCalendarItems((items) => items.map((item) => item.id === leavingRoomId ? { ...item, status: "ended" } : item));
+    }
     history.replaceState(null, "", "/");
     setRoomId(null);
     setRoomMode("meeting");
     setIsHost(false);
+    setIsAdmitted(false);
+    isAdmittedRef.current = false;
     setShowInvite(false);
     setNotice(endForEveryone ? "Meeting ended." : "You left the meeting.");
   };
@@ -1272,7 +1280,7 @@ export function App() {
               <div className="heroVisual" aria-hidden="true"><div className="visualBackdrop backdropOne"/><div className="visualBackdrop backdropTwo"/><div className="visualWindow"><div className="visualWindowTop"><span/><span/><span/><b>RPcalls</b><MoreHorizontal size={16}/></div><div className="visualPeople"><div className="visualPerson personA"><b>J</b><span/><small>Jordan Lee</small></div><div className="visualPerson personB"><b>M</b><span/><small>Maya Chen</small></div><div className="visualPerson personC"><b>R</b><span/><small>Riley Park</small></div><div className="visualPerson personD"><b>Y</b><span/><small>You</small></div></div><div className="visualControls"><i/><i/><i/><b><PhoneOff size={14}/></b></div></div><div className="floatChip chipInvite"><UserRoundPlus size={15}/><span>Guest joined</span><Check size={14}/></div><div className="floatChip chipShare"><MonitorUp size={15}/><span>Screen sharing</span></div></div>
             </section>
             <section className="quickActions"><div className="sectionHeading"><div><p className="eyebrow">GET STARTED</p><h2>Ready when you are</h2></div><span>Simple tools for better conversations</span></div><div className="quickActionGrid"><button type="button" className="quickActionCard" onClick={()=>void createMeeting()}><span className="quickIcon purple"><Video size={20}/></span><strong>Start a meeting</strong><small>Open a room and invite anyone with a link.</small><i><ArrowLeft size={16}/></i></button><button type="button" className="quickActionCard" onClick={()=>{const input=document.getElementById("join-link-input") as HTMLInputElement|null;input?.focus()}}><span className="quickIcon blue"><Link2 size={20}/></span><strong>Join a meeting</strong><small>Paste a meeting URL shared with you.</small><i><ArrowLeft size={16}/></i></button><button type="button" className="quickActionCard" onClick={()=>setShowSettings(true)}><span className="quickIcon orange"><Settings2 size={20}/></span><strong>Check your setup</strong><small>Review camera, microphone, and network readiness.</small><i><ArrowLeft size={16}/></i></button></div></section>
-            <section className="joinByLinkCard"><div className="joinByIcon"><Link2 size={19}/></div><div className="joinByCopy"><strong>Have a meeting or chat link?</strong><span>Paste it here to join an RPcalls room.</span></div><form onSubmit={(e)=>{e.preventDefault();const input=document.getElementById("join-link-input") as HTMLInputElement|null;if(!input)return;try{const value=new URL(input.value.trim());const mode=value.searchParams.has("chat")?"chat":"meeting";const id=value.searchParams.get("meeting")||value.searchParams.get("chat")||value.pathname.split("/").filter(Boolean).pop();if(!id)throw new Error("No room ID found");setRoomId(id);setRoomMode(mode);setIsHost(false);history.replaceState(null,"",`/?${mode==="chat"?"chat":"meeting"}=${encodeURIComponent(id)}`);}catch{notify("That does not look like a valid RPcalls meeting or chat link.");}}}><input id="join-link-input" placeholder="Paste an RPcalls meeting or chat link" type="url" aria-label="Meeting or chat link" required/><button className="secondaryButton" type="submit">Join</button></form></section>
+            <section className="joinByLinkCard"><div className="joinByIcon"><Link2 size={19}/></div><div className="joinByCopy"><strong>Have a meeting or chat link?</strong><span>Paste it here to join an RPcalls room.</span></div><form onSubmit={(e)=>{e.preventDefault();const input=document.getElementById("join-link-input") as HTMLInputElement|null;if(!input)return;try{const value=new URL(input.value.trim());const mode=value.searchParams.has("chat")?"chat":"meeting";const id=value.searchParams.get("meeting")||value.searchParams.get("chat")||value.pathname.split("/").filter(Boolean).pop();if(!id)throw new Error("No room ID found");setRoomId(id);setRoomMode(mode);setMeetingTitle(value.searchParams.get("title")||"RPcalls meeting");setIsHost(false);history.replaceState(null,"",`/?${mode==="chat"?"chat":"meeting"}=${encodeURIComponent(id)}${mode==="meeting"&&value.searchParams.get("title")?"&title="+encodeURIComponent(value.searchParams.get("title")!):""}`);}catch{notify("That does not look like a valid RPcalls meeting or chat link.");}}}><input id="join-link-input" placeholder="Paste an RPcalls meeting or chat link" type="url" aria-label="Meeting or chat link" required/><button className="secondaryButton" type="submit">Join</button></form></section>
           </> : meetingTab==="meetings" ? <section className="meetingsPage calendarPage">
               <div className="meetingsPageHeading"><div><p className="eyebrow">PLAN AHEAD</p><h1>Calendar</h1><p>Schedule titled meetings, create reusable invite links, and keep the calendar ready for future email integration.</p></div><button type="button" className="primaryButton" onClick={()=>void createMeeting()}><Plus size={17}/> New meeting</button></div>
               <div className="calendarContent">
