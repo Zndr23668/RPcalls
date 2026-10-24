@@ -4,10 +4,10 @@
 
 ## First version includes
 
-- Start a new room and copy/share a unique meeting link.
+- Start a video meeting or a separate chat-only room and copy/share its unique invite link.
 - External participants can join in a browser by entering a display name; they do not need a Remote Professionals account.
 - Multi-participant audio/video calls using WebRTC mesh connections.
-- Live meeting chat, participant list, mute/unmute, camera on/off, raise hand, and screen sharing.
+- Live meeting chat, separate shareable chat rooms, participant list, mute/unmute, camera on/off, raise hand, and screen sharing.
 - Responsive meeting workspace, guest join screen, and Material-inspired UI.
 - Optional TURN server configuration for networks where STUN-only calls cannot connect.
 
