@@ -270,6 +270,85 @@ export function App() {
     }
   };
 
+  const bindDataChannel = (remoteId: string, dataChannel: RTCDataChannel) => {
+    dataChannel.binaryType = "arraybuffer";
+    dataChannel.bufferedAmountLowThreshold = 256 * 1024;
+    dataChannelsRef.current.set(remoteId, dataChannel);
+    dataChannel.onopen = () => notify("Direct file sharing is ready.");
+    dataChannel.onclose = () => {
+      if (dataChannelsRef.current.get(remoteId) === dataChannel) dataChannelsRef.current.delete(remoteId);
+    };
+    dataChannel.onerror = () => notify("A direct file-sharing connection had an error.");
+    dataChannel.onmessage = (event) => { void handleIncomingFileMessage(remoteId, event); };
+  };
+
+  const handleIncomingFileMessage = async (remoteId: string, event: MessageEvent) => {
+    const transfer = incomingFilesRef.current.get(remoteId);
+    if (typeof event.data === "string") {
+      let message: any;
+      try { message = JSON.parse(event.data); } catch { return; }
+      if (message.kind === "file-start" && message.id && message.name) {
+        const id = String(message.id);
+        const name = safeFileName(String(message.name));
+        let writable: any = null;
+        if (identityRef.current.isHost && saveDirectoryHandleRef.current) {
+          try {
+            const handle = await saveDirectoryHandleRef.current.getFileHandle(name, { create: true });
+            writable = await handle.createWritable();
+          } catch (error) {
+            console.warn("RPcalls auto-save could not create file", error);
+            notify("Could not create the auto-save file. The browser may have revoked folder access.");
+          }
+        }
+        incomingFilesRef.current.set(remoteId, {
+          id, name, size: Number(message.size) || 0, type: String(message.type || "application/octet-stream"),
+          received: 0, chunks: [], writable, peerName: String(message.fromName || "Participant"),
+        });
+        setFileTransfers((current) => [...current.filter((item) => item.id !== id), {
+          id, name, size: Number(message.size) || 0, received: 0, status: "receiving",
+          direction: "received", peerName: String(message.fromName || "Participant"),
+        }]);
+        if (identityRef.current.isHost && !writable) notify("File incoming. Choose an auto-save folder to save future files without a prompt.");
+        return;
+      }
+      if (message.kind === "file-end" && transfer) {
+        try {
+          if (transfer.writable) {
+            await transfer.writable.close();
+            setFileTransfers((current) => current.map((item) => item.id === transfer.id ? { ...item, received: transfer.received, status: "saved" } : item));
+            notify(`Saved ${transfer.name} to the selected folder.`);
+          } else {
+            const blob = new Blob(transfer.chunks, { type: transfer.type });
+            const url = URL.createObjectURL(blob);
+            const anchor = document.createElement("a");
+            anchor.href = url;
+            anchor.download = transfer.name;
+            anchor.style.display = "none";
+            document.body.appendChild(anchor);
+            anchor.click();
+            anchor.remove();
+            window.setTimeout(() => URL.revokeObjectURL(url), 60000);
+            setFileTransfers((current) => current.map((item) => item.id === transfer.id ? { ...item, received: transfer.received, status: "downloaded" } : item));
+            notify(`File received: ${transfer.name}. Check your browser downloads.`);
+          }
+        } catch (error) {
+          console.error("RPcalls file save failed", error);
+          try { await transfer.writable?.abort(); } catch { /* already closed */ }
+          setFileTransfers((current) => current.map((item) => item.id === transfer.id ? { ...item, status: "error" } : item));
+          notify(`Could not save ${transfer.name}.`);
+        } finally {
+          incomingFilesRef.current.delete(remoteId);
+        }
+        return;
+      }
+    } else if (transfer && event.data instanceof ArrayBuffer) {
+      transfer.received += event.data.byteLength;
+      if (transfer.writable) await transfer.writable.write(event.data);
+      else transfer.chunks.push(event.data);
+      setFileTransfers((current) => current.map((item) => item.id === transfer.id ? { ...item, received: transfer.received } : item));
+    }
+  };
+
   const getPeerConnection = (remoteId: string) => {
     const existing = pcsRef.current.get(remoteId);
     if (existing) return existing;
@@ -342,7 +421,6 @@ export function App() {
         notify("The organizer muted your microphone.");
         return;
       }
-      if (payload.kind === "offer" && payload.sdp && !isAdmitted && roomMode === "meeting") return;
       const pc = getPeerConnection(remoteId);
       if (payload.kind === "offer" && payload.sdp) {
         await pc.setRemoteDescription(new RTCSessionDescription(payload.sdp));
@@ -642,6 +720,75 @@ export function App() {
     } catch (error: any) {
       if (error?.name !== "NotAllowedError") setMediaWarning(error?.message || "Could not start screen sharing.");
     }
+  };
+
+  const chooseAutoSaveFolder = async () => {
+    const picker = (window as any).showDirectoryPicker;
+    if (!picker) {
+      notify("Automatic folder saving requires a browser with File System Access support, such as desktop Edge or Chrome. Files will still download normally.");
+      return;
+    }
+    try {
+      const directory = await picker({ mode: "readwrite" });
+      saveDirectoryHandleRef.current = directory;
+      setAutoSaveFolderName(directory.name || "Selected folder");
+      notify("Auto-save folder selected. Incoming files will be written directly to that folder.");
+    } catch (error: any) {
+      if (error?.name !== "AbortError") notify(error?.message || "Could not access the selected folder.");
+    }
+  };
+
+  const sendFileToRoom = async (file: File) => {
+    const activePeerIds = identityRef.current.isHost
+      ? participants.filter((person) => person.peerId !== peerIdRef.current && person.admitted !== false).map((person) => person.peerId)
+      : hostPeerIdRef.current && hostPeerIdRef.current !== peerIdRef.current ? [hostPeerIdRef.current] : [];
+    if (!activePeerIds.length) {
+      notify(identityRef.current.isHost ? "No admitted guests are available to receive this file." : "Wait for the host to admit you before sharing files.");
+      return;
+    }
+    if (file.size > 500 * 1024 * 1024) {
+      notify("Files are limited to 500 MB in this first version.");
+      return;
+    }
+    const targets = activePeerIds.map((id) => ({ id, channel: dataChannelsRef.current.get(id) }))
+      .filter((item) => item.channel?.readyState === "open");
+    if (!targets.length) {
+      notify("The direct file channel is not ready yet. Wait a moment and try again.");
+      return;
+    }
+    const id = randomId(12);
+    const transferItem: FileTransfer = { id, name: file.name, size: file.size, received: 0, status: "receiving", direction: "sent" };
+    setFileTransfers((current) => [transferItem, ...current].slice(0, 8));
+    const chunkSize = 48 * 1024;
+    try {
+      for (const target of targets) {
+        const channel = target.channel!;
+        channel.send(JSON.stringify({ kind: "file-start", id, name: file.name, size: file.size, type: file.type, fromName: identityRef.current.name }));
+        for (let offset = 0; offset < file.size; offset += chunkSize) {
+          while (channel.bufferedAmount > 1024 * 1024 && channel.readyState === "open") {
+            await new Promise<void>((resolve) => {
+              const resume = () => { channel.removeEventListener("bufferedamountlow", resume); resolve(); };
+              channel.addEventListener("bufferedamountlow", resume, { once: true });
+              window.setTimeout(resume, 500);
+            });
+          }
+          if (channel.readyState !== "open") throw new Error("The direct connection closed while sending the file.");
+          channel.send(await file.slice(offset, Math.min(file.size, offset + chunkSize)).arrayBuffer());
+        }
+        channel.send(JSON.stringify({ kind: "file-end", id }));
+      }
+      setFileTransfers((current) => current.map((item) => item.id === id ? { ...item, received: file.size, status: "saved" } : item));
+      notify(`Sent ${file.name} directly to ${targets.length === 1 ? "the host" : "meeting participants"}.`);
+    } catch (error: any) {
+      setFileTransfers((current) => current.map((item) => item.id === id ? { ...item, status: "error" } : item));
+      notify(error?.message || "The file could not be sent.");
+    }
+  };
+
+  const muteParticipant = async (targetPeerId: string) => {
+    if (!identityRef.current.isHost || !targetPeerId || targetPeerId === peerIdRef.current) return;
+    await sendSignal({ to: targetPeerId, kind: "host-mute" });
+    notify("Mute request sent.");
   };
 
   const sendChat = async (event: FormEvent) => {
