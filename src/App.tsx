@@ -1,9 +1,10 @@
 import { type FormEvent, useEffect, useMemo, useRef, useState } from "react";
 import {
-  AlertCircle, ArrowLeft, Check, CheckCheck, ChevronDown, CircleHelp, Copy,
+  AlertCircle, ArrowLeft, Check, CheckCheck, ChevronDown, ChevronLeft, ChevronRight, CircleHelp, Copy,
   Headphones, Link2, MessageCircle, Mic, MicOff, MonitorUp, MoreHorizontal,
   Plus, Send, Settings2, ShieldCheck, Sparkles, Users, Video, VideoOff, Wifi,
-  X, PhoneOff, Share2, CalendarClock, UserRoundPlus, PanelRight, Volume2,
+  X, PhoneOff, Share2, CalendarClock, CalendarDays, UserRoundPlus, PanelRight, Volume2,
+  FolderOpen, Paperclip, UserCheck, UserX, Clock3, Palette, Camera, FileUp,
 } from "lucide-react";
 import { realtimeConfigured, supabase } from "./lib/supabase";
 
@@ -11,11 +12,22 @@ type PresencePerson = {
   peerId: string;
   name: string;
   isHost?: boolean;
+  admitted?: boolean;
   micOn?: boolean;
   cameraOn?: boolean;
   raised?: boolean;
   joinedAt?: number;
 };
+type MeetingEntry = {
+  id: string;
+  title: string;
+  startAt: number;
+  createdAt: number;
+  status: "scheduled" | "started" | "ended";
+  mode: "meeting";
+};
+type BackgroundEffect = "none" | "blur" | "studio" | "warm";
+type FileTransfer = { id: string; name: string; size: number; received: number; status: "receiving" | "saved" | "downloaded" | "error"; direction: "sent" | "received"; peerName?: string };
 type ChatMessage = { id: string; from: string; name: string; text: string; sentAt: number };
 type Panel = "chat" | "people";
 
@@ -26,6 +38,18 @@ const randomId = (bytes = 20) => {
 };
 const hostStorageKey = (id: string) => `rpcalls:host:${id}`;
 const safeName = (value: string) => value.trim().slice(0, 50);
+const localDateValue = (date: Date) => {
+  const local = new Date(date.getTime() - date.getTimezoneOffset() * 60000);
+  return local.toISOString().slice(0, 10);
+};
+const defaultMeetingDate = () => localDateValue(new Date(Date.now() + 30 * 60000));
+const defaultMeetingTime = () => {
+  const date = new Date(Date.now() + 30 * 60000);
+  const mins = Math.ceil(date.getMinutes() / 15) * 15;
+  date.setMinutes(mins, 0, 0);
+  return `${String(date.getHours()).padStart(2,"0")}:${String(date.getMinutes()).padStart(2,"0")}`;
+};
+const safeFileName = (value: string) => value.replace(/[\\/:*?"<>|]/g, "_").replace(/^\.+/, "").slice(0, 160) || "shared-file";
 const timeLabel = (value: number) => new Date(value).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
 
 function VideoTile({
@@ -74,6 +98,22 @@ export function App() {
   const [roomMode, setRoomMode] = useState<"meeting" | "chat">(initialRoomMode);
   const [joined, setJoined] = useState(false);
   const [isHost, setIsHost] = useState(false);
+  const [isAdmitted, setIsAdmitted] = useState(false);
+  const [joinDenied, setJoinDenied] = useState(false);
+  const [meetingTitle, setMeetingTitle] = useState(() => initialParams.get("title") || "RPcalls meeting");
+  const [showCreateMeeting, setShowCreateMeeting] = useState(false);
+  const [newMeetingTitle, setNewMeetingTitle] = useState("");
+  const [newMeetingDate, setNewMeetingDate] = useState(defaultMeetingDate);
+  const [newMeetingTime, setNewMeetingTime] = useState(defaultMeetingTime);
+  const [calendarMonth, setCalendarMonth] = useState(() => new Date(new Date().getFullYear(), new Date().getMonth(), 1));
+  const [calendarItems, setCalendarItems] = useState<MeetingEntry[]>(() => {
+    try { return JSON.parse(localStorage.getItem("rpcalls:calendar:v1") || "[]") as MeetingEntry[]; } catch { return []; }
+  });
+  const [backgroundEffect, setBackgroundEffect] = useState<BackgroundEffect>("none");
+  const [backgroundBusy, setBackgroundBusy] = useState(false);
+  const [fileTransfers, setFileTransfers] = useState<FileTransfer[]>([]);
+  const [autoSaveFolderName, setAutoSaveFolderName] = useState("");
+  const [autoSaveSupported, setAutoSaveSupported] = useState(false);
   const [displayName, setDisplayName] = useState(() => {
     try { return localStorage.getItem("rpcalls:name") || ""; } catch { return ""; }
   });
@@ -114,6 +154,14 @@ export function App() {
   const makingOfferRef = useRef<Set<string>>(new Set());
   const messageEndRef = useRef<HTMLDivElement | null>(null);
   const fileChooserRef = useRef<HTMLInputElement | null>(null);
+  const fileSendInputRef = useRef<HTMLInputElement | null>(null);
+  const hostPeerIdRef = useRef("");
+  const dataChannelsRef = useRef<Map<string, RTCDataChannel>>(new Map());
+  const incomingFilesRef = useRef<Map<string, any>>(new Map());
+  const saveDirectoryHandleRef = useRef<any>(null);
+  const backgroundProcessorRef = useRef<any>(null);
+  const processedVideoStreamRef = useRef<MediaStream | null>(null);
+  const [processedVideoStream, setProcessedVideoStream] = useState<MediaStream | null>(null);
 
   useEffect(() => {
     if (roomId) {
@@ -128,6 +176,15 @@ export function App() {
       if (displayName.trim()) localStorage.setItem("rpcalls:name", displayName.trim());
     } catch { /* storage is optional */ }
   }, [displayName]);
+
+  useEffect(() => {
+    try { localStorage.setItem("rpcalls:calendar:v1", JSON.stringify(calendarItems)); }
+    catch { /* Calendar remains available for this session when storage is blocked. */ }
+  }, [calendarItems]);
+
+  useEffect(() => {
+    setAutoSaveSupported(typeof (window as any).showDirectoryPicker === "function");
+  }, []);
 
   useEffect(() => {
     messageEndRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
@@ -147,9 +204,11 @@ export function App() {
     window.setTimeout(() => setNotice(""), 3600);
   };
 
-  const currentRoomLink = (id = roomId, mode: "meeting" | "chat" = roomMode) => {
+  const currentRoomLink = (id = roomId, mode: "meeting" | "chat" = roomMode, title = meetingTitle) => {
     if (!id) return window.location.origin;
-    return `${window.location.origin}/?${mode === "chat" ? "chat" : "meeting"}=${encodeURIComponent(id)}`;
+    const params = new URLSearchParams({ [mode === "chat" ? "chat" : "meeting"]: id });
+    if (mode === "meeting" && title.trim()) params.set("title", title.trim());
+    return `${window.location.origin}/?${params.toString()}`;
   };
 
   const trackPresence = async (patch: Partial<typeof presenceRef.current> = {}) => {
