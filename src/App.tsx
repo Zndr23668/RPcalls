@@ -949,6 +949,23 @@ export function App() {
   const remoteParticipants = participants.filter((person) => person.peerId !== peerId);
   const localPreview = screenStream || localStream;
   const totalParticipants = Math.max(participants.length, joined ? 1 : 0);
+  const waitingParticipants = participants.filter((person) => person.peerId !== peerId && person.admitted === false && !person.isHost);
+  const calendarCells = useMemo(() => {
+    const year = calendarMonth.getFullYear();
+    const month = calendarMonth.getMonth();
+    const firstDay = new Date(year, month, 1).getDay();
+    const count = new Date(year, month + 1, 0).getDate();
+    const total = Math.ceil((firstDay + count) / 7) * 7;
+    return Array.from({ length: total }, (_, index) => new Date(year, month, index - firstDay + 1));
+  }, [calendarMonth]);
+  const calendarItemsByDate = useMemo(() => {
+    const grouped: Record<string, MeetingEntry[]> = {};
+    calendarItems.forEach((item) => {
+      const key = localDateValue(new Date(item.startAt));
+      grouped[key] = [...(grouped[key] || []), item];
+    });
+    return grouped;
+  }, [calendarItems]);
 
   if (joined && roomId) {
     const allTiles = [
