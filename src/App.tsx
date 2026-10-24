@@ -253,8 +253,10 @@ export function App() {
       return (a.joinedAt || 0) - (b.joinedAt || 0);
     });
     setParticipants(list);
+    const host = list.find((person) => person.isHost && person.admitted !== false);
+    hostPeerIdRef.current = host?.peerId || (identityRef.current.isHost ? peerIdRef.current : "");
     for (const person of list) {
-      if (person.peerId !== peerIdRef.current && peerIdRef.current.localeCompare(person.peerId) < 0) {
+      if (person.peerId !== peerIdRef.current && person.admitted !== false && peerIdRef.current.localeCompare(person.peerId) < 0) {
         void makeOffer(person.peerId);
       }
     }
@@ -274,7 +276,16 @@ export function App() {
     const pc = new RTCPeerConnection({ iceServers: turnServers });
     pcsRef.current.set(remoteId, pc);
     const local = localStreamRef.current;
-    local?.getTracks().forEach((track) => pc.addTrack(track, local));
+    const outgoing = processedVideoStreamRef.current;
+    local?.getTracks().forEach((track) => {
+      const sendTrack = track.kind === "video" && outgoing ? outgoing.getVideoTracks()[0] : track;
+      if (sendTrack) pc.addTrack(sendTrack, sendTrack === track ? local : outgoing!);
+    });
+    if (peerIdRef.current && peerIdRef.current.localeCompare(remoteId) < 0) {
+      const dataChannel = pc.createDataChannel("rpcalls-files", { ordered: true });
+      bindDataChannel(remoteId, dataChannel);
+    }
+    pc.ondatachannel = (event) => bindDataChannel(remoteId, event.channel);
     pc.onicecandidate = (event) => {
       if (event.candidate) void sendSignal({ to: remoteId, kind: "ice", candidate: event.candidate.toJSON() });
     };
@@ -323,6 +334,15 @@ export function App() {
     const remoteId = String(payload?.from || "");
     if (!remoteId || remoteId === peerIdRef.current || payload?.to !== peerIdRef.current) return;
     try {
+      if (payload.kind === "host-mute") {
+        if (hostPeerIdRef.current && remoteId !== hostPeerIdRef.current) return;
+        localStreamRef.current?.getAudioTracks().forEach((track) => { track.enabled = false; });
+        setMuted(true);
+        await trackPresence({ micOn: false });
+        notify("The organizer muted your microphone.");
+        return;
+      }
+      if (payload.kind === "offer" && payload.sdp && !isAdmitted && roomMode === "meeting") return;
       const pc = getPeerConnection(remoteId);
       if (payload.kind === "offer" && payload.sdp) {
         await pc.setRemoteDescription(new RTCSessionDescription(payload.sdp));
