@@ -67,8 +67,11 @@ function VideoTile({
 }
 
 export function App() {
-  const initialRoom = new URLSearchParams(window.location.search).get("meeting");
+  const initialParams = new URLSearchParams(window.location.search);
+  const initialRoom = initialParams.get("meeting") || initialParams.get("chat");
+  const initialRoomMode: "meeting" | "chat" = initialParams.has("chat") && !initialParams.has("meeting") ? "chat" : "meeting";
   const [roomId, setRoomId] = useState<string | null>(initialRoom);
+  const [roomMode, setRoomMode] = useState<"meeting" | "chat">(initialRoomMode);
   const [joined, setJoined] = useState(false);
   const [isHost, setIsHost] = useState(false);
   const [displayName, setDisplayName] = useState(() => {
@@ -92,7 +95,7 @@ export function App() {
   const [mediaWarning, setMediaWarning] = useState("");
   const [showInvite, setShowInvite] = useState(false);
   const [inviteCopied, setInviteCopied] = useState(false);
-  const [meetingTab, setMeetingTab] = useState<"overview" | "meetings">("overview");
+  const [meetingTab, setMeetingTab] = useState<"overview" | "meetings" | "chats">("overview");
   const [chatSearch, setChatSearch] = useState("");
   const [showSettings, setShowSettings] = useState(false);
   const [turnHelp, setTurnHelp] = useState(false);
@@ -144,9 +147,9 @@ export function App() {
     window.setTimeout(() => setNotice(""), 3600);
   };
 
-  const currentRoomLink = (id = roomId) => {
+  const currentRoomLink = (id = roomId, mode: "meeting" | "chat" = roomMode) => {
     if (!id) return window.location.origin;
-    return `${window.location.origin}/?meeting=${encodeURIComponent(id)}`;
+    return `${window.location.origin}/?${mode === "chat" ? "chat" : "meeting"}=${encodeURIComponent(id)}`;
   };
 
   const trackPresence = async (patch: Partial<typeof presenceRef.current> = {}) => {
@@ -324,7 +327,7 @@ export function App() {
     setBusy(false);
   };
 
-  const joinRoom = async (targetRoomId: string, hostOverride = false) => {
+  const joinRoom = async (targetRoomId: string, hostOverride = false, mode: "meeting" | "chat" = roomMode) => {
     if (!targetRoomId || joined || busy) return;
     if (!supabase || !realtimeConfigured) {
       setMediaWarning("RPcalls is missing its Realtime connection settings. Ask the app administrator to configure Supabase.");
@@ -339,23 +342,28 @@ export function App() {
     setBusy(true);
     setMediaWarning("");
     setRoomId(targetRoomId);
+    setRoomMode(mode);
     setIsHost(host);
     setDisplayName(cleanName);
     try { localStorage.setItem("rpcalls:name", cleanName); } catch { /* optional */ }
-    history.replaceState(null, "", `/?meeting=${encodeURIComponent(targetRoomId)}`);
+    history.replaceState(null, "", `/?${mode === "chat" ? "chat" : "meeting"}=${encodeURIComponent(targetRoomId)}`);
     peerIdRef.current = thisPeerId;
     identityRef.current = { peerId: thisPeerId, name: cleanName, isHost: host };
     setPeerId(thisPeerId);
     let stream: MediaStream | null = null;
-    try {
-      stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: true });
-    } catch (fullError) {
+    if (mode === "meeting") {
       try {
-        stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
-        setMediaWarning("Camera access was unavailable, so you joined with audio only. You can adjust permissions in your browser.");
+        stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: true });
       } catch {
-        setMediaWarning("Microphone/camera permission was not granted. You can still join, chat, and try enabling devices from the call controls.");
+        try {
+          stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
+          setMediaWarning("Camera access was unavailable, so you joined with audio only. You can adjust permissions in your browser.");
+        } catch {
+          setMediaWarning("Microphone/camera permission was not granted. You can still join, chat, and try enabling devices from the call controls.");
+        }
       }
+    } else {
+      setMediaWarning("");
     }
     localStreamRef.current = stream;
     setLocalStream(stream);
@@ -388,8 +396,9 @@ export function App() {
         void cleanupMeeting();
         history.replaceState(null, "", "/");
         setRoomId(null);
+        setRoomMode("meeting");
         setIsHost(false);
-        notify("The organizer ended this meeting.");
+        notify(roomMode === "chat" ? "The chat room was ended." : "The organizer ended this meeting.");
       })
       .subscribe(async (status: string) => {
         if (status === "SUBSCRIBED") {
@@ -422,7 +431,18 @@ export function App() {
     setIsHost(true);
     setMessages([]);
     setParticipants([]);
-    await joinRoom(id, true);
+    await joinRoom(id, true, "meeting");
+  };
+
+  const createChat = async () => {
+    const id = randomId(20);
+    try { sessionStorage.setItem(hostStorageKey(id), randomId(24)); } catch { /* host marker is optional */ }
+    setRoomId(id);
+    setRoomMode("chat");
+    setIsHost(true);
+    setMessages([]);
+    setParticipants([]);
+    await joinRoom(id, true, "chat");
   };
 
   const leaveMeeting = async (endForEveryone = false) => {
@@ -435,6 +455,7 @@ export function App() {
     await cleanupMeeting();
     history.replaceState(null, "", "/");
     setRoomId(null);
+    setRoomMode("meeting");
     setIsHost(false);
     setShowInvite(false);
     setNotice(endForEveryone ? "Meeting ended." : "You left the meeting.");
@@ -571,7 +592,7 @@ export function App() {
     try {
       await navigator.clipboard.writeText(link);
       setInviteCopied(true);
-      notify("Meeting link copied — anyone with the link can join.");
+      notify(roomMode === "chat" ? "Chat link copied — anyone with the link can join." : "Meeting link copied — anyone with the link can join.");
       setTimeout(() => setInviteCopied(false), 2200);
     } catch {
       window.prompt("Copy this meeting link and send it to your guest:", link);
@@ -618,7 +639,7 @@ export function App() {
         <header className="meetingTopbar">
           <div className="brandMark smallMark">RP</div>
           <div className="meetingTitleBlock">
-            <strong>RPcalls meeting</strong>
+            <strong>{roomMode === "chat" ? "RPcalls chat" : "RPcalls meeting"}</strong>
             <span><span className="liveDot" />{connectionState} <i>·</i> {totalParticipants} participant{totalParticipants === 1 ? "" : "s"}</span>
           </div>
           <div className="meetingTopActions">
@@ -630,13 +651,13 @@ export function App() {
         <main className={`meetingWorkspace ${activePanel ? "panelOpen" : ""}`}>
           <section className="meetingStage">
             <div className="stageHeading">
-              <div><p className="eyebrow">LIVE MEETING</p><h1>Good conversations start here.</h1><p>Share your link to bring someone into the room.</p></div>
+              <div><p className="eyebrow">{roomMode === "chat" ? "LIVE CHAT" : "LIVE MEETING"}</p><h1>{roomMode === "chat" ? "Your conversation is ready." : "Good conversations start here."}</h1><p>Share your link to bring someone into the room.</p></div>
               <button className="subtleButton" type="button" onClick={() => setShowInvite(true)}><Link2 size={15} /> Meeting info</button>
             </div>
             {mediaWarning && <div className="inlineAlert"><AlertCircle size={16} /><span>{mediaWarning}</span><button type="button" onClick={() => setMediaWarning("")}><X size={14} /></button></div>}
             <div className={`videoGrid ${allTiles.length===1?"oneTile":allTiles.length===2?"twoTiles":allTiles.length>4?"manyTiles":""}`}>
               {allTiles.map((tile) => <VideoTile key={tile.id || "local"} name={tile.name} stream={tile.stream} muted={tile.local} local={tile.local} cameraOn={tile.cameraOn} isHost={tile.host} />)}
-              {allTiles.length === 1 && <button type="button" className="emptyGuestCard" onClick={() => setShowInvite(true)}><span className="emptyGuestIcon"><UserRoundPlus size={24} /></span><strong>You're the first one here</strong><span>Invite someone outside your organization with a link.</span><b>Invite a guest <Plus size={14}/></b></button>}
+              {allTiles.length === 1 && <button type="button" className="emptyGuestCard" onClick={() => setShowInvite(true)}><span className="emptyGuestIcon"><UserRoundPlus size={24} /></span><strong>You're the first one here</strong><span>{roomMode === "chat" ? "Share this chat link to start messaging with someone." : "Invite someone outside your organization with a link."}</span><b>Invite a guest <Plus size={14}/></b></button>}
             </div>
             <div className="meetingControlDock">
               <div className="dockLeft"><span className="meetingTime"><Wifi size={14}/>{connectionState}</span></div>
@@ -697,8 +718,8 @@ export function App() {
         <main className="joinGrid">
           <section className="joinCard">
             <div className="joinIllustration"><div className="illustrationCircle circleOne"/><div className="illustrationCircle circleTwo"/><div className="illustrationCallCard"><Video size={21}/><span>RPcalls</span><div><i/><i/><i/></div></div><div className="illustrationBadge"><Users size={18}/></div></div>
-            <p className="eyebrow">YOU'RE INVITED</p><h1>Join the conversation.</h1><p className="joinDescription">You're joining an RPcalls meeting. Enter your name and hop in — no Remote Professionals account required.</p>
-            <form onSubmit={(e)=>{e.preventDefault();void joinRoom(roomId,isHost)}} className="joinForm">
+            <p className="eyebrow">YOU'RE INVITED</p><h1>Join the conversation.</h1><p className="joinDescription">{roomMode === "chat" ? "You’re joining an RPcalls chat. Enter your name and start messaging — no Remote Professionals account required." : "You’re joining an RPcalls meeting. Enter your name and hop in — no Remote Professionals account required."}</p>
+            <form onSubmit={(e)=>{e.preventDefault();void joinRoom(roomId,isHost,roomMode)}} className="joinForm">
               <label className="fieldLabel">Your name<input autoFocus value={displayName} onChange={(e)=>setDisplayName(e.target.value)} placeholder="How should we call you?" maxLength={50} required/></label>
               {mediaWarning&&<div className="inlineAlert"><AlertCircle size={16}/><span>{mediaWarning}</span><button type="button" onClick={()=>setMediaWarning("")}><X size={14}/></button></div>}
               {!realtimeConfigured&&<div className="inlineAlert"><AlertCircle size={16}/><span>Meeting service is not configured yet. The administrator needs to set the Supabase environment variables.</span></div>}
@@ -722,6 +743,7 @@ export function App() {
         <nav className="primaryNav">
           <button type="button" className={meetingTab==="overview"?"selected":""} onClick={()=>setMeetingTab("overview")}><Sparkles size={18}/> Overview</button>
           <button type="button" className={meetingTab==="meetings"?"selected":""} onClick={()=>setMeetingTab("meetings")}><CalendarClock size={18}/> Meetings</button>
+          <button type="button" className={meetingTab==="chats"?"selected":""} onClick={()=>setMeetingTab("chats")}><MessageCircle size={18}/> Chats</button>
         </nav>
         <div className="sidebarBottom"><div className="sidebarHelpCard"><span><Headphones size={17}/></span><strong>Need help?</strong><small>Check your connection and browser permissions.</small><button type="button" onClick={()=>setShowSettings(true)}>Connection settings <ArrowLeft size={13}/></button></div><div className="profileMini"><div className="profileMiniAvatar">{displayName.trim().charAt(0).toUpperCase()||"G"}</div><div><strong>{safeName(displayName)||"Guest user"}</strong><small>RPcalls guest</small></div><button type="button" aria-label="Profile options" onClick={()=>setShowSettings(true)}><MoreHorizontal size={17}/></button></div></div>
       </aside>
