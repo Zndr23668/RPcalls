@@ -778,12 +778,12 @@ export function App() {
       if (audioContext && audioContext.state !== "closed") void audioContext.close();
       mediaRecorderRef.current = null;
       stopRecordingRef.current = null;
-      recordingStartedRoomRef.current = null;
     };
 
     try {
       await recordingApi({ action: "start", meetingId: targetRoomId, title, hostToken, startedAt: new Date().toISOString() });
       audioContext = new AudioContext();
+      await audioContext.resume();
       audioDestination = audioContext.createMediaStreamDestination();
       canvas = document.createElement("canvas");
       canvas.width = 1280;
