@@ -769,6 +769,155 @@ export function App() {
     await trackPresence({ cameraOn: next });
   };
 
+  const setBackground = async (effect: BackgroundEffect) => {
+    if (backgroundBusy) return;
+    setBackgroundBusy(true);
+    try {
+      const old = backgroundProcessorRef.current;
+      if (old) {
+        old.stopped = true;
+        if (old.frame) cancelAnimationFrame(old.frame);
+        try { await old.segmenter?.close(); } catch { /* dispose old segmenter */ }
+        try { old.video?.pause(); old.video.srcObject = null; } catch { /* disposed */ }
+        old.stream?.getTracks().forEach((track: MediaStreamTrack) => track.stop());
+        backgroundProcessorRef.current = null;
+      }
+      if (effect === "none") {
+        processedVideoStreamRef.current?.getTracks().forEach((track) => track.stop());
+        processedVideoStreamRef.current = null;
+        setProcessedVideoStream(null);
+        setBackgroundEffect("none");
+        const rawTrack = localStreamRef.current?.getVideoTracks()[0] || null;
+        pcsRef.current.forEach((pc) => {
+          const sender = pc.getSenders().find((item) => item.track?.kind === "video");
+          if (sender) void sender.replaceTrack(rawTrack);
+        });
+        notify("Background effects turned off.");
+        return;
+      }
+      let rawTrack = localStreamRef.current?.getVideoTracks()[0] || null;
+      if (!rawTrack) {
+        const cameraStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
+        rawTrack = cameraStream.getVideoTracks()[0];
+        if (!localStreamRef.current) localStreamRef.current = new MediaStream();
+        localStreamRef.current.addTrack(rawTrack);
+        setLocalStream(localStreamRef.current);
+        setCameraOn(true);
+        await trackPresence({ cameraOn: true });
+        pcsRef.current.forEach((pc, remoteId) => {
+          if (!pc.getSenders().some((item) => item.track?.kind === "video")) {
+            pc.addTrack(rawTrack!, localStreamRef.current!);
+            if (peerIdRef.current.localeCompare(remoteId) < 0) void makeOffer(remoteId);
+            else void sendSignal({ to: remoteId, kind: "renegotiate-request" });
+          }
+        });
+      }
+      const video = document.createElement("video");
+      video.muted = true;
+      video.playsInline = true;
+      video.srcObject = new MediaStream([rawTrack!]);
+      await video.play();
+      const width = Math.max(320, Math.min(1280, rawTrack!.getSettings().width || 640));
+      const height = Math.max(180, Math.min(720, rawTrack!.getSettings().height || 360));
+      const canvas = document.createElement("canvas");
+      canvas.width = width;
+      canvas.height = height;
+      const ctx = canvas.getContext("2d");
+      const foreground = document.createElement("canvas");
+      foreground.width = width;
+      foreground.height = height;
+      const fgCtx = foreground.getContext("2d");
+      if (!ctx || !fgCtx || !canvas.captureStream) throw new Error("Canvas background effects are not supported in this browser.");
+      const globals = window as any;
+      if (!globals.SelfieSegmentation) {
+        await new Promise<void>((resolve, reject) => {
+          const existing = document.querySelector('script[data-rpcalls-segmentation="true"]') as HTMLScriptElement | null;
+          if (existing) {
+            existing.addEventListener("load", () => resolve(), { once: true });
+            existing.addEventListener("error", () => reject(new Error("Could not load the background effect model.")), { once: true });
+            window.setTimeout(() => globals.SelfieSegmentation ? resolve() : reject(new Error("Background effect model timed out.")), 12000);
+            return;
+          }
+          const script = document.createElement("script");
+          script.src = "https://cdn.jsdelivr.net/npm/@mediapipe/selfie_segmentation/selfie_segmentation.js";
+          script.crossOrigin = "anonymous";
+          script.dataset.rpcallsSegmentation = "true";
+          script.onload = () => resolve();
+          script.onerror = () => reject(new Error("Could not load the background effect model. Check your network and try again."));
+          document.head.appendChild(script);
+        });
+      }
+      const segmenter = new globals.SelfieSegmentation({
+        locateFile: (file: string) => "https://cdn.jsdelivr.net/npm/@mediapipe/selfie_segmentation/" + file,
+      });
+      await segmenter.setOptions({ modelSelection: 1 });
+      const outputStream = canvas.captureStream(24);
+      const processor: any = { video, canvas, segmenter, stream: outputStream, stopped: false, frame: 0 };
+      backgroundProcessorRef.current = processor;
+      segmenter.onResults((results: any) => {
+        if (processor.stopped) return;
+        ctx.save();
+        ctx.clearRect(0, 0, width, height);
+        if (effect === "blur") {
+          ctx.filter = "blur(14px)";
+          ctx.drawImage(results.image, -12, -12, width + 24, height + 24);
+          ctx.filter = "none";
+        } else {
+          const gradient = ctx.createLinearGradient(0, 0, width, height);
+          if (effect === "studio") {
+            gradient.addColorStop(0, "#26364f");
+            gradient.addColorStop(0.55, "#445e78");
+            gradient.addColorStop(1, "#91a9bb");
+          } else {
+            gradient.addColorStop(0, "#f3ded0");
+            gradient.addColorStop(0.55, "#e5d8cf");
+            gradient.addColorStop(1, "#bdc6d8");
+          }
+          ctx.fillStyle = gradient;
+          ctx.fillRect(0, 0, width, height);
+        }
+        fgCtx.save();
+        fgCtx.clearRect(0, 0, width, height);
+        fgCtx.drawImage(results.image, 0, 0, width, height);
+        fgCtx.globalCompositeOperation = "destination-in";
+        fgCtx.drawImage(results.segmentationMask, 0, 0, width, height);
+        fgCtx.globalCompositeOperation = "source-over";
+        fgCtx.restore();
+        ctx.drawImage(foreground, 0, 0, width, height);
+        ctx.restore();
+      });
+      processedVideoStreamRef.current = outputStream;
+      setProcessedVideoStream(outputStream);
+      setBackgroundEffect(effect);
+      const processedTrack = outputStream.getVideoTracks()[0];
+      pcsRef.current.forEach((pc, remoteId) => {
+        const sender = pc.getSenders().find((item) => item.track?.kind === "video");
+        if (sender) void sender.replaceTrack(processedTrack);
+        else {
+          pc.addTrack(processedTrack, outputStream);
+          if (peerIdRef.current.localeCompare(remoteId) < 0) void makeOffer(remoteId);
+          else void sendSignal({ to: remoteId, kind: "renegotiate-request" });
+        }
+      });
+      const processFrame = async () => {
+        if (processor.stopped) return;
+        try { if (video.readyState >= 2) await segmenter.send({ image: video }); }
+        catch (error) { console.debug("Background segmentation frame skipped", error); }
+        if (!processor.stopped) processor.frame = requestAnimationFrame(() => { void processFrame(); });
+      };
+      void processFrame();
+      notify(effect === "blur" ? "Background blur enabled." : "Virtual background enabled.");
+    } catch (error: any) {
+      setBackgroundEffect("none");
+      setProcessedVideoStream(null);
+      processedVideoStreamRef.current?.getTracks().forEach((track) => track.stop());
+      processedVideoStreamRef.current = null;
+      notify(error?.message || "Could not apply the background effect.");
+    } finally {
+      setBackgroundBusy(false);
+    }
+  };
+
   const toggleScreenShare = async () => {
     if (sharingScreen) {
       screenStreamRef.current?.getTracks().forEach((track) => track.stop());
