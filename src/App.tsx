@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { type FormEvent, useEffect, useMemo, useRef, useState } from "react";
 import {
   AlertCircle, ArrowLeft, Check, CheckCheck, ChevronDown, CircleHelp, Copy,
   Headphones, Link2, MessageCircle, Mic, MicOff, MonitorUp, MoreHorizontal,
@@ -536,7 +536,7 @@ export function App() {
     }
   };
 
-  const sendChat = async (event: React.FormEvent) => {
+  const sendChat = async (event: FormEvent) => {
     event.preventDefault();
     const text = draft.trim();
     const channel = channelRef.current;
