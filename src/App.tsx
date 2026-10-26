@@ -231,7 +231,7 @@ export function App() {
         if (!data || data.is_active !== true) {
           setAuthStatus("inactive");
           setAuthError("This login does not have an active RPportal user profile. Ask an administrator to activate your account.");
-          await supabase.auth.signOut();
+          void supabase?.auth.signOut();
           return;
         }
         setAuthStatus("active");
