@@ -121,3 +121,30 @@ a{color:inherit;text-decoration:none}
 .authSignOutButton:hover{border-color:#cbc7f2;background:#f7f6ff;color:var(--primary)}
 @media(max-width:760px){.authGateGrid{grid-template-columns:minmax(0,520px);gap:15px;padding:24px 16px}.authGateCard{padding:25px 20px}.authGateGrid .joinAside{display:grid;grid-template-columns:1fr 1fr}.authGateGrid .joinQuote{grid-column:1/-1}}
 @media(max-width:500px){.authGateGrid .joinAside{grid-template-columns:1fr}.authGateGrid .joinQuote{grid-column:auto}.authGateCard{padding:22px 17px}.authSignOutButton{font-size:8px;padding:0 7px}}
+
+
+/* Minimal external guest join: name, join action, microphone and camera only */
+.guestJoinPage{min-height:100vh;background:radial-gradient(ellipse at 50% 0%,rgba(99,91,214,.09),transparent 54%),var(--page-bg,#f7f7fc)}
+.guestJoinHeader{justify-content:center;min-height:68px;border-bottom:1px solid rgba(120,124,160,.12)}
+.guestJoinHeader .joinHeaderSecure{display:none}
+.guestJoinMain{width:100%;max-width:510px;margin:0 auto;padding:36px 20px 56px}
+.guestJoinCard{width:100%;padding:32px;border-radius:24px}
+.guestJoinCard .joinIllustration,.guestJoinCard .joinDisclaimer{display:none}
+.guestJoinCard h1{margin:0;font-size:clamp(27px,5vw,35px);letter-spacing:-.045em}
+.guestJoinCard .joinDescription{margin:10px 0 24px}
+.guestJoinForm{gap:17px}
+.guestJoinForm .fieldLabel input{min-height:46px}
+.guestMediaOptions{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.guestMediaToggle{display:flex;align-items:center;gap:10px;min-width:0;padding:13px 11px;border:1px solid #e2e4f0;border-radius:15px;background:#fff;text-align:left;color:#50566e;cursor:pointer;transition:border-color .16s,background .16s,transform .16s}
+.guestMediaToggle:hover{border-color:#b8b4ed}
+.guestMediaToggle.selected{border-color:#b9b4f4;background:#f7f6ff;color:#4d43b5}
+.guestMediaIcon{display:grid;place-items:center;flex:0 0 34px;height:34px;border-radius:11px;background:#f0eff8}
+.guestMediaToggle.selected .guestMediaIcon{background:#e8e5ff}
+.guestMediaToggle>span:nth-child(2){display:flex;flex:1;flex-direction:column;gap:4px;min-width:0}
+.guestMediaToggle strong{font-size:11px;font-weight:750}
+.guestMediaToggle small{font-size:9px;color:#858aa0;white-space:nowrap}
+.guestTogglePill{display:flex;align-items:center;width:26px;height:15px;padding:2px;border-radius:12px;background:#c5c8d4;flex:0 0 auto}
+.guestTogglePill i{display:block;width:11px;height:11px;border-radius:50%;background:white;transition:transform .16s}
+.guestTogglePill.on{background:#6658dc}
+.guestTogglePill.on i{transform:translateX(11px)}
+@media(max-width:430px){.guestJoinMain{padding:24px 14px}.guestJoinCard{padding:25px 19px}.guestMediaOptions{grid-template-columns:1fr}.guestMediaToggle{padding:12px}}
