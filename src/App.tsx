@@ -226,9 +226,25 @@ export function App() {
   useEffect(() => {
     if (authStatus !== "signed-out" || roomId || !supabase) return;
     const params = new URLSearchParams(window.location.search);
-    if (params.has("sso_token_hash") || params.has("meeting") || params.has("chat")) return;
+    if (params.has("sso_token_hash") || params.has("sso") || params.has("meeting") || params.has("chat")) return;
     window.location.replace("https://rpportal-ten.vercel.app/?sso=rpcalls");
   }, [authStatus, roomId]);
+
+  // Reverse handoff: if an employee is already signed into RPcalls, allow RPportal to reuse that identity.
+  useEffect(() => {
+    if (authStatus !== "active" || !authUser || !supabase) return;
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("sso") !== "rpportal") return;
+    params.delete("sso");
+    window.history.replaceState(null, "", window.location.pathname + (params.toString() ? "?" + params.toString() : "") + window.location.hash);
+    void supabase.functions.invoke("rp-sso-handoff", { body: { target: "rpportal" } }).then(({ data, error }) => {
+      if (error || !data?.redirectUrl) {
+        setAuthError("Could not securely open RPportal. Please retry.");
+        return;
+      }
+      window.location.replace(data.redirectUrl);
+    }).catch(() => setAuthError("Could not securely open RPportal. Please retry."));
+  }, [authStatus, authUser]);
 
   useEffect(() => {
     if (!supabase) {
