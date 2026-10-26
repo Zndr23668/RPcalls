@@ -1599,7 +1599,7 @@ export function App() {
                 <div className="guestMeetingDivider"><span>OR JOIN AS A GUEST</span></div>
                 <form className="joinForm authGateGuestForm" onSubmit={handleGuestMeetingJoin}>
                   <label className="fieldLabel">Meeting ID or invite link
-                    <input type="text" autoComplete="off" value={guestMeetingId} onChange={(event) => { setGuestMeetingId(event.target.value); setGuestJoinError(""); }} placeholder="Paste or enter the meeting ID" maxLength={512} required/>
+                    <input type="text" autoFocus autoComplete="off" value={guestMeetingId} onChange={(event) => { setGuestMeetingId(event.target.value); setGuestJoinError(""); }} placeholder="Paste or enter the meeting ID" maxLength={512} required/>
                   </label>
                   {guestJoinError && <div className="authGateError" role="alert"><AlertCircle size={16}/><span>{guestJoinError}</span></div>}
                   <button className="secondaryButton joinSubmit" type="submit"><Users size={16}/> Join meeting ID</button>
