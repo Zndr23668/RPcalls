@@ -127,6 +127,8 @@ export function App() {
   const [remoteStreams, setRemoteStreams] = useState<Record<string, MediaStream>>({});
   const [muted, setMuted] = useState(false);
   const [cameraOn, setCameraOn] = useState(true);
+  const [joinMicOn, setJoinMicOn] = useState(true);
+  const [joinCameraOn, setJoinCameraOn] = useState(true);
   const [raised, setRaised] = useState(false);
   const [sharingScreen, setSharingScreen] = useState(false);
   const [connectionState, setConnectionState] = useState("Ready");
@@ -587,20 +589,28 @@ export function App() {
 
   const requestMeetingMedia = async () => {
     let stream: MediaStream | null = null;
-    try {
-      stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: true });
-    } catch {
+    if (joinMicOn || joinCameraOn) {
       try {
-        stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
-        setMediaWarning("Camera access was unavailable, so you joined with audio only. You can adjust permissions in your browser.");
+        stream = await navigator.mediaDevices.getUserMedia({ audio: joinMicOn, video: joinCameraOn });
       } catch {
-        setMediaWarning("Microphone/camera permission was not granted. You can still join, chat, and try enabling devices from the call controls.");
+        if (joinMicOn && joinCameraOn) {
+          try {
+            stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
+            setMediaWarning("Camera access was unavailable, so you joined with audio only. You can adjust permissions in your browser.");
+          } catch {
+            setMediaWarning("Microphone/camera permission was not granted. You can still join and try enabling devices from the call controls.");
+          }
+        } else if (joinMicOn) {
+          setMediaWarning("Microphone access was unavailable. You can still join and try enabling it from the call controls.");
+        } else {
+          setMediaWarning("Camera access was unavailable. You can still join and try enabling it from the call controls.");
+        }
       }
     }
     localStreamRef.current = stream;
     setLocalStream(stream);
-    const hasAudio = Boolean(stream?.getAudioTracks().some((track) => track.enabled));
-    const hasVideo = Boolean(stream?.getVideoTracks().some((track) => track.enabled));
+    const hasAudio = Boolean(joinMicOn && stream?.getAudioTracks().some((track) => track.enabled));
+    const hasVideo = Boolean(joinCameraOn && stream?.getVideoTracks().some((track) => track.enabled));
     setMuted(!hasAudio);
     setCameraOn(hasVideo);
     presenceRef.current = { ...presenceRef.current, micOn: hasAudio, cameraOn: hasVideo };
@@ -1603,24 +1613,25 @@ export function App() {
 
   if (roomId) {
     return (
-      <div className="joinPage">
-        <header className="joinHeader"><a className="brandLink" href="/" onClick={(e)=>{e.preventDefault();closeJoin()}}><span className="brandMark">RP</span><strong>RPcalls</strong></a><span className="joinHeaderSecure"><ShieldCheck size={15}/> Browser-based meeting</span></header>
-        <main className="joinGrid">
-          <section className="joinCard">
-            <div className="joinIllustration"><div className="illustrationCircle circleOne"/><div className="illustrationCircle circleTwo"/><div className="illustrationCallCard"><Video size={21}/><span>RPcalls</span><div><i/><i/><i/></div></div><div className="illustrationBadge"><Users size={18}/></div></div>
-            <p className="eyebrow">YOU'RE INVITED</p><h1>Join the conversation.</h1><p className="joinDescription">{roomMode === "chat" ? "You’re joining an RPcalls chat. Enter your name and start messaging — no Remote Professionals account required." : "You’re joining an RPcalls meeting. Enter your name and hop in — no Remote Professionals account required."}</p>
-            <form onSubmit={(e)=>{e.preventDefault();void joinRoom(roomId,isHost,roomMode)}} className="joinForm">
-              <label className="fieldLabel">Your name<input autoFocus value={displayName} onChange={(e)=>setDisplayName(e.target.value)} placeholder="How should we call you?" maxLength={50} required/></label>
+      <div className="joinPage guestJoinPage">
+        <header className="joinHeader guestJoinHeader"><a className="brandLink" href="/" onClick={(e)=>{e.preventDefault();closeJoin()}}><span className="brandMark">RP</span><strong>RPcalls</strong></a></header>
+        <main className="guestJoinMain">
+          <section className="joinCard guestJoinCard">
+            <p className="eyebrow">YOU'RE INVITED</p>
+            <h1>{roomMode === "chat" ? "Join the conversation." : "Join the meeting."}</h1>
+            <p className="joinDescription">{roomMode === "chat" ? "Enter your name to join this conversation." : "Enter your name and choose your microphone and camera before joining."}</p>
+            <form onSubmit={(e)=>{e.preventDefault();void joinRoom(roomId,isHost,roomMode)}} className="joinForm guestJoinForm">
+              <label className="fieldLabel">Your name<input autoFocus value={displayName} onChange={(e)=>setDisplayName(e.target.value)} placeholder="Your name" maxLength={50} required/></label>
+              {roomMode === "meeting" && <div className="guestMediaOptions" aria-label="Microphone and camera options">
+                <button type="button" className={joinMicOn ? "guestMediaToggle selected" : "guestMediaToggle"} aria-pressed={joinMicOn} onClick={()=>setJoinMicOn((value)=>!value)}><span className="guestMediaIcon">{joinMicOn ? <Mic size={19}/> : <MicOff size={19}/>}</span><span><strong>Microphone</strong><small>{joinMicOn ? "On when joining" : "Off when joining"}</small></span><span className={joinMicOn ? "guestTogglePill on" : "guestTogglePill"}><i/></span></button>
+                <button type="button" className={joinCameraOn ? "guestMediaToggle selected" : "guestMediaToggle"} aria-pressed={joinCameraOn} onClick={()=>setJoinCameraOn((value)=>!value)}><span className="guestMediaIcon">{joinCameraOn ? <Video size={19}/> : <VideoOff size={19}/>}</span><span><strong>Camera</strong><small>{joinCameraOn ? "On when joining" : "Off when joining"}</small></span><span className={joinCameraOn ? "guestTogglePill on" : "guestTogglePill"}><i/></span></button>
+              </div>}
               {mediaWarning&&<div className="inlineAlert"><AlertCircle size={16}/><span>{mediaWarning}</span><button type="button" onClick={()=>setMediaWarning("")}><X size={14}/></button></div>}
-              {!realtimeConfigured&&<div className="inlineAlert"><AlertCircle size={16}/><span>Meeting service is not configured yet. The administrator needs to set the Supabase environment variables.</span></div>}
-              <button className="primaryButton joinSubmit" type="submit" disabled={busy||!displayName.trim()||!realtimeConfigured}>{busy?"Preparing your meeting…":"Join meeting"}<ArrowLeft size={16} className="joinArrow"/></button>
+              {!realtimeConfigured&&<div className="inlineAlert"><AlertCircle size={16}/><span>Meeting service is not configured yet. Please contact the host.</span></div>}
+              <button className="primaryButton joinSubmit" type="submit" disabled={busy||!displayName.trim()||!realtimeConfigured}>{busy?"Joining…":roomMode === "chat" ? "Join chat" : "Join meeting"}<ArrowLeft size={16} className="joinArrow"/></button>
             </form>
-            <div className="joinDisclaimer"><ShieldCheck size={15}/><span>Only join meeting links you trust. Anyone with this link may be able to enter.</span></div>
           </section>
-          <aside className="joinAside"><div className="joinQuote"><Sparkles size={18}/><h2>Meet more naturally.</h2><p>Talk face-to-face, share what you’re working on, and keep the conversation moving.</p></div><div className="joinFeature"><span><Mic size={17}/></span><div><strong>Voice & video</strong><small>Choose your devices once you join</small></div></div><div className="joinFeature"><span><MessageCircle size={17}/></span><div><strong>Shared meeting chat</strong><small>Send messages while you talk</small></div></div><div className="joinFeature"><span><MonitorUp size={17}/></span><div><strong>Screen sharing</strong><small>Present your screen to the room</small></div></div></aside>
         </main>
-        <footer className="joinFooter"><span>RPcalls · Meetings for every team</span><button type="button" onClick={() => setShowSettings(true)}><Settings2 size={14}/> Connection help</button></footer>
-        {showSettings&&<div className="dialogScrim" onMouseDown={(e)=>{if(e.target===e.currentTarget)setShowSettings(false)}}><section className="settingsDialog" role="dialog" aria-modal="true" aria-labelledby="settingsTitle"><button className="dialogClose" type="button" onClick={() => setShowSettings(false)} aria-label="Close"><X size={17}/></button><div className="dialogIcon"><Settings2 size={22}/></div><p className="eyebrow">CONNECTION HELP</p><h2 id="settingsTitle">RPcalls settings</h2><div className="settingsInfo"><div><strong>Realtime connection</strong><span>{realtimeConfigured?"Configured":"Not configured"}</span></div><div><strong>STUN servers</strong><span>Available</span></div><div><strong>TURN relay</strong><span>{turnServers.length>1?"Configured":"Optional — not configured"}</span></div></div><p className="turnHelpText">If a call cannot connect on a company network, a TURN relay may be required. Ask the administrator to configure TURN in Vercel.</p><div className="dialogActions"><button type="button" className="secondaryButton" onClick={() => setShowSettings(false)}>Close</button></div></section></div>}
       </div>
     );
   }
