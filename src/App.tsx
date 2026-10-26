@@ -949,7 +949,7 @@ export function App() {
       canvas.height = 720;
       canvasContext = canvas.getContext("2d");
       if (!canvasContext) throw new Error("Could not initialize the meeting recording canvas.");
-      canvasStream = canvas.captureStream(24);
+      canvasStream = canvas.captureStream(20);
       recordingStream = new MediaStream([
         ...canvasStream.getVideoTracks(),
         ...audioDestination.stream.getAudioTracks(),
@@ -1024,7 +1024,7 @@ export function App() {
       };
       drawFrame();
       const mimeType = ["video/webm;codecs=vp9,opus", "video/webm;codecs=vp8,opus", "video/webm"].find(type => MediaRecorder.isTypeSupported(type));
-      recorder = new MediaRecorder(recordingStream, { ...(mimeType ? { mimeType } : {}), videoBitsPerSecond: 1_500_000, audioBitsPerSecond: 128_000 });
+      recorder = new MediaRecorder(recordingStream, { ...(mimeType ? { mimeType } : {}), videoBitsPerSecond: 900_000, audioBitsPerSecond: 96_000 });
       recorder.ondataavailable = event => { if (event.data.size) chunks.push(event.data); };
       recorder.onerror = () => {
         setRecordingStatus("error");
@@ -1035,7 +1035,7 @@ export function App() {
           setRecordingStatus("uploading");
           const blob = new Blob(chunks, { type: recorder?.mimeType || "video/webm" });
           if (!blob.size) throw new Error("The recording was empty.");
-          if (blob.size > 500 * 1024 * 1024) throw new Error("This recording exceeds the 500 MB upload limit. Shorten the meeting or lower recording quality.");
+          if (blob.size > 4 * 1024 * 1024 * 1024) throw new Error("This recording exceeds the 4 GB upload limit. Shorten the meeting or lower recording quality.");
           const fileName = `${safeFileName(title)}-${targetRoomId}.webm`;
           const signed = await recordingApi({
             action: "upload-url", meetingId: targetRoomId, hostToken, fileName,
