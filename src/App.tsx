@@ -156,6 +156,8 @@ export function App() {
   const [authBusy, setAuthBusy] = useState(false);
   const [authError, setAuthError] = useState("");
   const [authDisplayName, setAuthDisplayName] = useState("");
+  const [guestMeetingId, setGuestMeetingId] = useState("");
+  const [guestJoinError, setGuestJoinError] = useState("");
 
   // Generate a fresh, subtle Bauhaus composition for each successful workspace login.
   useEffect(() => {
@@ -358,6 +360,50 @@ export function App() {
     });
     if (error) setAuthError("Sign-in failed. Check your RPportal email and password, then try again.");
     setAuthBusy(false);
+  };
+
+  const handleGuestMeetingJoin = (event: FormEvent) => {
+    event.preventDefault();
+    const inputValue = guestMeetingId.trim();
+    if (!inputValue) {
+      setGuestJoinError("Enter a meeting ID or invite link.");
+      return;
+    }
+
+    let targetId = inputValue;
+    let targetTitle = "RPcalls meeting";
+    let targetMode: "meeting" | "chat" = "meeting";
+    if (/^https?:\/\//i.test(inputValue) || inputValue.startsWith("/")) {
+      try {
+        const inviteUrl = new URL(inputValue, window.location.origin);
+        const meetingId = inviteUrl.searchParams.get("meeting");
+        const chatId = inviteUrl.searchParams.get("chat");
+        if (meetingId) {
+          targetId = meetingId;
+          targetTitle = inviteUrl.searchParams.get("title") || "RPcalls meeting";
+        } else if (chatId) {
+          targetId = chatId;
+          targetMode = "chat";
+        } else {
+          throw new Error("Invite link does not include a meeting ID.");
+        }
+      } catch {
+        setGuestJoinError("Enter a meeting ID or a valid RPcalls invite link.");
+        return;
+      }
+    }
+    if (!targetId || /\s/.test(targetId)) {
+      setGuestJoinError("Check the meeting ID and try again.");
+      return;
+    }
+
+    setGuestJoinError("");
+    setRoomId(targetId);
+    setRoomMode(targetMode);
+    setMeetingTitle(targetTitle);
+    setIsHost(false);
+    setJoinDenied(false);
+    setMediaWarning("");
   };
 
   const currentRoomLink = (id = roomId, mode: "meeting" | "chat" = roomMode, title = meetingTitle) => {
@@ -1550,7 +1596,16 @@ export function App() {
                 <a className="primaryButton joinSubmit" href="https://rpportal-ten.vercel.app/?sso=rpcalls" style={{display:"flex",justifyContent:"center",marginTop:12,textDecoration:"none"}}>
                   Continue with existing RPportal session <ArrowLeft className="joinArrow" size={16}/>
                 </a>
-                <div className="joinDisclaimer"><ShieldCheck size={15}/><span>Only active users in the RPportal user directory can open the workspace. Guests can still join using a meeting invite link.</span></div>
+                <div className="guestMeetingDivider"><span>OR JOIN AS A GUEST</span></div>
+                <form className="joinForm authGateGuestForm" onSubmit={handleGuestMeetingJoin}>
+                  <label className="fieldLabel">Meeting ID or invite link
+                    <input type="text" autoComplete="off" value={guestMeetingId} onChange={(event) => { setGuestMeetingId(event.target.value); setGuestJoinError(""); }} placeholder="Paste or enter the meeting ID" maxLength={512} required/>
+                  </label>
+                  {guestJoinError && <div className="authGateError" role="alert"><AlertCircle size={16}/><span>{guestJoinError}</span></div>}
+                  <button className="secondaryButton joinSubmit" type="submit"><Users size={16}/> Join meeting ID</button>
+                  <p className="guestMeetingHint">External guests don't need an RPportal account. The host may need to admit you.</p>
+                </form>
+                <div className="joinDisclaimer"><ShieldCheck size={15}/><span>Only active users in the RPportal user directory can open the workspace. Guests can join a meeting directly with its ID or invite link.</span></div>
               </>
             )}
           </section>
