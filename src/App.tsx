@@ -96,6 +96,7 @@ export function App() {
   const initialRoomMode: "meeting" | "chat" = initialParams.has("chat") && !initialParams.has("meeting") ? "chat" : "meeting";
   const [roomId, setRoomId] = useState<string | null>(initialRoom);
   const [roomMode, setRoomMode] = useState<"meeting" | "chat">(initialRoomMode);
+  const [setupVariant] = useState(() => Math.floor(Math.random() * 6));
   const [joined, setJoined] = useState(false);
   const [isHost, setIsHost] = useState(false);
   const [isAdmitted, setIsAdmitted] = useState(false);
@@ -1497,7 +1498,7 @@ export function App() {
   if (joined && roomId && roomMode === "meeting" && !isAdmitted) {
     return (
       <div className="joinPage waitingRoomPage">
-        <div className="bauhausBackdrop homeSetupBackdrop" aria-hidden="true"><span className="setupHalo haloOuter"/><span className="setupHalo haloInner"/><span className="setupOrbit orbitBlue"/><span className="setupOrbit orbitRed"/><span className="setupOrbit orbitYellow"/><span className="setupCore"><i/><i/><i/><i/></span><span className="setupTile tileBlue"/><span className="setupTile tileRed"/><span className="setupTile tileYellow"/><span className="setupTile tileGreen"/><span className="setupSpark sparkOne"/><span className="setupSpark sparkTwo"/></div>
+        <div className={`bauhausBackdrop homeSetupBackdrop setupVariant${setupVariant}`} aria-hidden="true"><span className="setupHalo haloOuter"/><span className="setupHalo haloInner"/><span className="setupOrbit orbitBlue"/><span className="setupOrbit orbitRed"/><span className="setupOrbit orbitYellow"/><span className="setupCore"><i/><i/><i/><i/></span><span className="setupTile tileBlue"/><span className="setupTile tileRed"/><span className="setupTile tileYellow"/><span className="setupTile tileGreen"/><span className="setupSpark sparkOne"/><span className="setupSpark sparkTwo"/></div>
         <header className="joinHeader"><a className="brandLink" href="/" onClick={(e)=>{e.preventDefault();void leaveMeeting(false)}}><span className="brandMark">RP</span><strong>RPcalls</strong></a><span className="joinHeaderSecure"><ShieldCheck size={15}/> Guest waiting room</span></header>
         <main className="joinGrid waitingGrid">
           <section className="joinCard waitingCard">
@@ -1615,7 +1616,7 @@ export function App() {
   if (roomId) {
     return (
       <div className="joinPage guestJoinPage">
-        <div className="bauhausBackdrop homeSetupBackdrop" aria-hidden="true"><span className="setupHalo haloOuter"/><span className="setupHalo haloInner"/><span className="setupOrbit orbitBlue"/><span className="setupOrbit orbitRed"/><span className="setupOrbit orbitYellow"/><span className="setupCore"><i/><i/><i/><i/></span><span className="setupTile tileBlue"/><span className="setupTile tileRed"/><span className="setupTile tileYellow"/><span className="setupTile tileGreen"/><span className="setupSpark sparkOne"/><span className="setupSpark sparkTwo"/></div>
+        <div className={`bauhausBackdrop homeSetupBackdrop setupVariant${setupVariant}`} aria-hidden="true"><span className="setupHalo haloOuter"/><span className="setupHalo haloInner"/><span className="setupOrbit orbitBlue"/><span className="setupOrbit orbitRed"/><span className="setupOrbit orbitYellow"/><span className="setupCore"><i/><i/><i/><i/></span><span className="setupTile tileBlue"/><span className="setupTile tileRed"/><span className="setupTile tileYellow"/><span className="setupTile tileGreen"/><span className="setupSpark sparkOne"/><span className="setupSpark sparkTwo"/></div>
         <header className="joinHeader guestJoinHeader"><a className="brandLink" href="/" onClick={(e)=>{e.preventDefault();closeJoin()}}><span className="brandMark">RP</span><strong>RPcalls</strong></a></header>
         <main className="guestJoinMain">
           <section className="joinCard guestJoinCard">
