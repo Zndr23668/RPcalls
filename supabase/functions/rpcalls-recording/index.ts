@@ -75,7 +75,7 @@ Deno.serve(async (req: Request) => {
     if (action === "upload-url") {
       const size = Number(body.size);
       const contentType = String(body.contentType || "video/webm").slice(0, 120);
-      if (!Number.isSafeInteger(size) || size < 1 || size > 500 * 1024 * 1024) return jsonError(413, "Recording must be between 1 byte and 500 MB.", origin);
+      if (!Number.isSafeInteger(size) || size < 1 || size > 4 * 1024 * 1024 * 1024) return jsonError(413, "Recording must be between 1 byte and 4 GB.", origin);
       const objectPath = `rpcalls/recordings/${meetingId}/meeting-${meetingId}.webm`;
       const command = new PutObjectCommand({ Bucket: bucket, Key: objectPath, ContentType: contentType });
       const uploadUrl = await getSignedUrl(s3, command, { expiresIn: 900 });
@@ -87,7 +87,7 @@ Deno.serve(async (req: Request) => {
     if (action === "complete") {
       const objectPath = String(body.objectPath || "");
       const size = Number(body.size);
-      if (objectPath !== `rpcalls/recordings/${meetingId}/meeting-${meetingId}.webm` || !Number.isSafeInteger(size) || size < 1 || size > 500 * 1024 * 1024) return jsonError(400, "Recording completion metadata is invalid.", origin);
+      if (objectPath !== `rpcalls/recordings/${meetingId}/meeting-${meetingId}.webm` || !Number.isSafeInteger(size) || size < 1 || size > 4 * 1024 * 1024 * 1024) return jsonError(400, "Recording completion metadata is invalid; recordings are limited to 4 GB.", origin);
       const endedAt = typeof body.endedAt === "string" && Number.isFinite(Date.parse(body.endedAt)) ? new Date(body.endedAt).toISOString() : new Date().toISOString();
       const { error } = await admin.from("rpcalls_recordings").update({ status: "saved", object_path: objectPath, size_bytes: size, content_type: String(body.contentType || "video/webm").slice(0, 120), ended_at: endedAt, updated_at: new Date().toISOString() }).eq("meeting_id", meetingId);
       if (error) return jsonError(500, "The B2 upload completed, but Supabase could not save the recording status.", origin);
