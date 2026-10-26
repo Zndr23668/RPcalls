@@ -626,7 +626,7 @@ export function App() {
     }
     const cleanName = safeName(displayName) || "Guest";
     const thisPeerId = randomId(12);
-    const host = hostOverride || (() => {
+    const host = hostOverride || Boolean(initialParams.get("host")) || (() => {
       try { return Boolean(sessionStorage.getItem(hostStorageKey(targetRoomId))); } catch { return false; }
     })();
     const admitted = host || mode === "chat";
