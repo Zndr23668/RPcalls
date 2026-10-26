@@ -174,3 +174,508 @@ a{color:inherit;text-decoration:none}
 @keyframes bauhaus-dots{0%{transform:translateY(0);opacity:.14}100%{transform:translateY(18px);opacity:.32}}
 @media(max-width:640px){.bauhausOrb.orbOne{width:65vw;right:-14%;top:15%}.bauhausOrb.orbTwo{width:50vw;left:-18%;bottom:4%}.bauhausRing{width:54vw;right:0;bottom:-5%}.bauhausBlock.blockOne{left:8%;top:20%;width:20vw}.bauhausBlock.blockTwo{right:4%;bottom:10%;width:19vw}.bauhausDotField{left:2%;top:10%;transform:scale(.75)}}
 @media(prefers-reduced-motion:reduce){.bauhausBackdrop span{animation:none!important;will-change:auto}}
+
+/* ===========================================================
+   PREVIEW THEME: Google Material 3 × Bauhaus
+   Warm mineral surfaces, M3 components and typography, and
+   disciplined Bauhaus geometry in signal blue, red and yellow.
+   Scope: preview branch only.
+   =========================================================== */
+:root {
+  color-scheme: light;
+  font-family: "DM Sans", "Google Sans", system-ui, sans-serif;
+  --ink: #1b1b1b;
+  --muted: #5f625f;
+  --line: #d8d3c8;
+  --surface: #fffdf8;
+  --canvas: #f4f1e8;
+  --primary: #1557c0;
+  --primary-hover: #0d438f;
+  --primary-soft: #dce8ff;
+  --blue: #1557c0;
+  --green: #287c55;
+  --red: #c6382f;
+  --shadow: 0 8px 24px rgba(27, 27, 27, .09);
+  --m3-primary: #1557c0;
+  --m3-on-primary: #ffffff;
+  --m3-primary-container: #dce8ff;
+  --m3-on-primary-container: #001a43;
+  --m3-surface: #fffdf8;
+  --m3-surface-low: #faf7f0;
+  --m3-surface-container: #f0ede5;
+  --m3-surface-high: #e9e5dc;
+  --m3-outline: #79766f;
+  --bauhaus-blue: #1557c0;
+  --bauhaus-red: #c6382f;
+  --bauhaus-yellow: #f2c230;
+  --bauhaus-black: #1b1b1b;
+  --bauhaus-paper: #f4f1e8;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+}
+html { background: var(--canvas); }
+body { background: var(--canvas); color: var(--ink); }
+button, input, textarea, select { font-family: inherit; }
+button { -webkit-tap-highlight-color: transparent; }
+::selection { background: #f2c230; color: #1b1b1b; }
+:focus-visible { outline: 3px solid #1557c0; outline-offset: 3px; }
+
+/* Home shell and Bauhaus geometry */
+.homeShell {
+  position: relative;
+  isolation: isolate;
+  background: var(--canvas);
+}
+.homeShell > .bauhausHomeBackdrop {
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background:
+    linear-gradient(90deg, transparent 0 79%, rgba(21,87,192,.045) 79% 79.3%, transparent 79.3%),
+    radial-gradient(ellipse at 88% 7%, rgba(242,194,48,.12), transparent 28%),
+    var(--bauhaus-paper);
+}
+.homeShell > .appSidebar { z-index: 2; }
+.homeShell > .homeMain { position: relative; z-index: 1; }
+.appSidebar {
+  background: rgba(255,253,248,.94);
+  border-right: 2px solid var(--bauhaus-black);
+  padding-top: 25px;
+  box-shadow: 5px 0 0 rgba(27,27,27,.025);
+}
+.brandLink { gap: 13px; }
+.brandMark {
+  border-radius: 13px 13px 4px 13px;
+  background: var(--bauhaus-blue);
+  color: #fff;
+  box-shadow: 4px 4px 0 var(--bauhaus-black);
+}
+.brandWordmark strong { color: var(--bauhaus-black); letter-spacing: -.055em; }
+.brandWordmark small { color: #5f625f; }
+.sidebarNewMeeting {
+  min-height: 48px;
+  border: 2px solid var(--bauhaus-black);
+  border-radius: 15px 15px 5px 15px;
+  background: var(--bauhaus-yellow);
+  color: var(--bauhaus-black);
+  box-shadow: 4px 4px 0 var(--bauhaus-black);
+  font-size: 12px;
+}
+.sidebarNewMeeting:hover { background: #f7d86d; color: var(--bauhaus-black); transform: translate(1px,1px); box-shadow: 2px 2px 0 var(--bauhaus-black); }
+.primaryNav { gap: 7px; }
+.primaryNav button {
+  min-height: 45px;
+  border: 1px solid transparent;
+  border-radius: 13px 13px 4px 13px;
+  color: #4c4c49;
+}
+.primaryNav button svg { color: currentColor; }
+.primaryNav button:hover { border-color: #bcb7ac; background: #f0ede5; color: var(--bauhaus-black); }
+.primaryNav button.selected {
+  border-color: var(--bauhaus-black);
+  background: var(--m3-primary-container);
+  color: #001a43;
+  font-weight: 800;
+  box-shadow: 3px 3px 0 var(--bauhaus-black);
+}
+.primaryNav button.selected svg { color: var(--bauhaus-blue); }
+.sidebarHelpCard {
+  border: 1.5px solid var(--bauhaus-black);
+  border-radius: 17px 17px 5px 17px;
+  background: var(--m3-surface-low);
+}
+.sidebarHelpCard>span { border-radius: 12px 12px 4px 12px; background: var(--bauhaus-red); color: #fff; }
+.sidebarHelpCard button { color: var(--bauhaus-blue); }
+.profileMini { border-top: 1.5px solid #bcb7ac; }
+.profileMiniAvatar { background: var(--bauhaus-blue); color: #fff; border-radius: 12px 12px 50% 12px; }
+.homeTopbar {
+  border-bottom: 2px solid var(--bauhaus-black);
+  background: rgba(255,253,248,.9);
+  backdrop-filter: blur(20px);
+}
+.crumb { color: #555650; font-size: 12px; }
+.crumb span { color: var(--bauhaus-red); }
+.topbarStatus { color: #51514b; font-size: 11px; }
+.liveDot,.presenceDot { background: #287c55; }
+.authSignOutButton {
+  min-height: 36px;
+  padding: 0 13px;
+  border: 1.5px solid var(--bauhaus-black);
+  border-radius: 100px;
+  background: var(--m3-surface);
+  color: var(--bauhaus-black);
+}
+.authSignOutButton:hover { background: var(--m3-surface-container); }
+.iconButton {
+  border: 1.5px solid #bcb7ac;
+  border-radius: 50%;
+  background: var(--m3-surface);
+  color: var(--bauhaus-black);
+}
+.iconButton:hover { border-color: var(--bauhaus-black); background: var(--m3-primary-container); color: var(--bauhaus-blue); }
+
+/* M3 + Bauhaus overview hero */
+.homeContent { padding-top: 29px; }
+.homeHero {
+  position: relative;
+  border: 2px solid var(--bauhaus-black);
+  border-radius: 28px 28px 6px 28px;
+  background:
+    linear-gradient(90deg, transparent 0 64%, rgba(242,194,48,.18) 64% 100%),
+    var(--m3-surface);
+  box-shadow: 7px 7px 0 var(--bauhaus-black);
+  overflow: hidden;
+}
+.homeHero::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 8px;
+  height: 100%;
+  background: var(--bauhaus-red);
+}
+.heroTag {
+  color: var(--bauhaus-blue);
+  font-size: 11px;
+  letter-spacing: .045em;
+  text-transform: uppercase;
+}
+.heroTag>span:first-child {
+  width: 10px;
+  height: 10px;
+  border-radius: 0;
+  background: var(--bauhaus-red);
+  box-shadow: 4px 4px 0 var(--bauhaus-yellow);
+}
+.homeHero h1 {
+  color: var(--bauhaus-black);
+  letter-spacing: -.065em;
+  font-family: "Google Sans", "DM Sans", system-ui, sans-serif;
+}
+.homeHero h1 em { color: var(--bauhaus-blue); }
+.homeHero p { color: #555650; line-height: 1.85; }
+.heroTrust { color: #565750; font-size: 10px; }
+.heroTrust svg { color: var(--bauhaus-blue); }
+.heroTrust span { color: var(--bauhaus-red); }
+.visualBackdrop { filter: none; }
+.backdropOne {
+  border-radius: 0;
+  background: var(--bauhaus-yellow);
+  box-shadow: 5px 5px 0 var(--bauhaus-black);
+  transform: rotate(11deg);
+}
+.backdropTwo {
+  border-radius: 50%;
+  background: var(--bauhaus-blue);
+  box-shadow: 4px 4px 0 var(--bauhaus-black);
+}
+.visualWindow {
+  border: 2px solid var(--bauhaus-black);
+  border-radius: 21px 21px 5px 21px;
+  background: var(--m3-surface);
+  box-shadow: 8px 8px 0 var(--bauhaus-black);
+}
+.visualWindowTop { border-bottom: 1px solid #d8d3c8; }
+.visualWindowTop>span { border-radius: 0; }
+.visualWindowTop>span:first-child { background: var(--bauhaus-red); }
+.visualWindowTop>span:nth-child(2) { background: var(--bauhaus-yellow); }
+.visualWindowTop>span:nth-child(3) { background: var(--bauhaus-blue); }
+.visualWindowTop b { color: var(--bauhaus-black); }
+.visualPerson { border-radius: 12px 12px 4px 12px; }
+.personA { background: linear-gradient(140deg,#dce8ff,#8fb6f5); }
+.personA>b { background: var(--bauhaus-blue); }
+.personB { background: linear-gradient(140deg,#f7dbd5,#e7a49c); }
+.personB>b { background: var(--bauhaus-red); }
+.personC { background: linear-gradient(140deg,#ffedac,#f2c230); }
+.personC>b { background: var(--bauhaus-black); }
+.personD { background: linear-gradient(140deg,#e5e0d4,#bdb7a9); }
+.personD>b { background: #287c55; }
+.floatChip {
+  border: 1.5px solid var(--bauhaus-black);
+  border-radius: 100px;
+  background: var(--m3-surface);
+  color: var(--bauhaus-black);
+  box-shadow: 4px 4px 0 var(--bauhaus-black);
+}
+.chipInvite svg:last-child { color: #287c55; }
+.chipShare svg { color: var(--bauhaus-red); }
+
+/* Material shape system, tactile cards and clear action hierarchy */
+.primaryButton,.secondaryButton,.outlineButton,.subtleButton {
+  min-height: 43px;
+  border-radius: 100px;
+  font-size: 12px;
+  font-weight: 700;
+}
+.primaryButton {
+  border: 1.5px solid var(--bauhaus-blue);
+  background: var(--bauhaus-blue);
+  color: #fff;
+  box-shadow: 0 2px 0 rgba(27,27,27,.16);
+}
+.primaryButton:hover { border-color: #0d438f; background: #0d438f; transform: translateY(-1px); box-shadow: 0 4px 0 rgba(27,27,27,.18); }
+.secondaryButton {
+  border: 1.5px solid var(--bauhaus-black);
+  background: var(--m3-surface);
+  color: var(--bauhaus-black);
+  box-shadow: none;
+}
+.secondaryButton:hover,.outlineButton:hover,.subtleButton:hover {
+  border-color: var(--bauhaus-blue);
+  background: var(--m3-primary-container);
+  color: #001a43;
+}
+.outlineButton,.subtleButton { border: 1.5px solid #bcb7ac; border-radius: 100px; }
+.quickActions { margin-top: 36px; }
+.sectionHeading h2 { color: var(--bauhaus-black); font-family: "Google Sans","DM Sans",system-ui,sans-serif; letter-spacing: -.035em; }
+.eyebrow { color: #68675f; letter-spacing: .15em; }
+.sectionHeading>span { color: #66665f; }
+.quickActionGrid { gap: 15px; }
+.quickActionCard {
+  min-height: 164px;
+  padding: 19px;
+  border: 1.5px solid var(--bauhaus-black);
+  border-radius: 21px 21px 5px 21px;
+  background: var(--m3-surface);
+  box-shadow: 4px 4px 0 var(--bauhaus-black);
+}
+.quickActionCard:hover {
+  transform: translate(-1px,-1px);
+  border-color: var(--bauhaus-black);
+  box-shadow: 6px 6px 0 var(--bauhaus-black);
+}
+.quickIcon { border-radius: 13px 13px 4px 13px; }
+.quickIcon.purple { background: var(--m3-primary-container); color: var(--bauhaus-blue); }
+.quickIcon.blue { background: #dce8ff; color: var(--bauhaus-blue); }
+.quickIcon.orange { background: #f8dfd9; color: var(--bauhaus-red); }
+.quickActionCard strong { color: var(--bauhaus-black); font-size: 13px; }
+.quickActionCard small { color: #5f625f; font-size: 11px; line-height: 1.65; }
+.quickActionCard>i { border-radius: 50%; background: var(--m3-surface-container); color: var(--bauhaus-black); }
+.joinByLinkCard {
+  border: 1.5px solid var(--bauhaus-black);
+  border-left: 7px solid var(--bauhaus-yellow);
+  border-radius: 19px 19px 5px 19px;
+  background: var(--m3-surface);
+  box-shadow: 4px 4px 0 rgba(27,27,27,.85);
+}
+.joinByIcon { border-radius: 12px 12px 4px 12px; background: var(--m3-primary-container); color: var(--bauhaus-blue); }
+.joinByCopy strong { color: var(--bauhaus-black); font-size: 12px; }
+.joinByCopy span { color: #5f625f; font-size: 10px; }
+.joinByLinkCard input,.fieldLabel input,.fieldLabel textarea,.fieldLabel select,.joinByLinkCard select {
+  border: 1.5px solid #8c887e;
+  border-radius: 12px;
+  background: #fffdf8;
+  color: var(--bauhaus-black);
+  font-size: 12px;
+}
+.joinByLinkCard input:focus,.fieldLabel input:focus,.fieldLabel textarea:focus,.fieldLabel select:focus {
+  border-color: var(--bauhaus-blue);
+  box-shadow: 0 0 0 3px #dce8ff;
+}
+
+/* Calendar: a precise M3 grid with a Bauhaus signal palette */
+.meetingsPageHeading h1 {
+  color: var(--bauhaus-black);
+  font-family: "Google Sans","DM Sans",system-ui,sans-serif;
+  font-size: clamp(29px,3vw,36px);
+  letter-spacing: -.055em;
+}
+.meetingsPageHeading p:not(.eyebrow) { color: #5f625f; font-size: 12px; line-height: 1.7; }
+.calendarContent { gap: 17px; }
+.calendarCard,.calendarMeetingsCard {
+  border: 1.5px solid var(--bauhaus-black);
+  border-radius: 22px 22px 5px 22px;
+  background: var(--m3-surface);
+  box-shadow: 5px 5px 0 var(--bauhaus-black);
+}
+.calendarMonthHeader,.calendarMeetingsHeader { border-bottom: 1.5px solid #c9c4b8; }
+.calendarMonthHeader h2,.calendarMeetingsHeader h2 { color: var(--bauhaus-black); font-family: "Google Sans","DM Sans",system-ui,sans-serif; font-size: 16px; }
+.calendarMonthHeader small,.calendarMeetingsHeader small { color: #5f625f; font-size: 10px; }
+.calendarMonthControls button {
+  border: 1.5px solid #bcb7ac;
+  border-radius: 100px;
+  background: var(--m3-surface);
+  color: var(--bauhaus-black);
+}
+.calendarMonthControls button:hover { border-color: var(--bauhaus-blue); background: var(--m3-primary-container); color: var(--bauhaus-blue); }
+.calendarWeekday { color: #5f625f; }
+.calendarDay { border-radius: 10px 10px 3px 10px; color: #343430; }
+.calendarDay:hover { background: #f0ede5; }
+.calendarDay.outsideMonth { color: #aaa69d; }
+.calendarDay.isToday .calendarDayNumber { border-radius: 50%; background: var(--bauhaus-blue); color: #fff; }
+.calendarDay.hasCalendarEvent { background: #f8f3e6; }
+.calendarDay.hasCalendarEvent:hover { border-color: var(--bauhaus-black); background: #fff4cf; }
+.calendarEventDots i,.calendarLegend .calendarLegendLive { background: var(--bauhaus-red); }
+.calendarEventDots i:nth-child(2) { background: var(--bauhaus-yellow); }
+.calendarEventDots i:nth-child(3) { background: var(--bauhaus-blue); }
+.calendarLegend .calendarLegendEnded { background: #85837d; }
+.calendarCount { border-radius: 100px; background: var(--m3-primary-container); color: var(--bauhaus-blue); }
+.calendarNoEvents>span { border-radius: 14px 14px 4px 14px; background: #fff0bc; color: var(--bauhaus-black); }
+.calendarNoEvents strong { color: var(--bauhaus-black); font-size: 12px; }
+.calendarNoEvents p { color: #5f625f; font-size: 10px; }
+.calendarMeetingRow { border-bottom: 1px solid #e2ded4; }
+.meetingDateBadge { border: 1.5px solid var(--bauhaus-black); border-radius: 12px 12px 3px 12px; background: var(--m3-primary-container); color: var(--bauhaus-blue); }
+.calendarMeetingInfo>strong { color: var(--bauhaus-black); font-size: 11px; }
+.calendarMeetingInfo>small { color: #5f625f; font-size: 9px; }
+.calendarStatus { border-radius: 100px; background: #fff0bc; color: var(--bauhaus-black); }
+.calendarStatus.started { background: #dce8ff; color: #001a43; }
+.calendarStatus.ended { background: #e9e5dc; color: #57554f; }
+.calendarLinkButton { border: 1.5px solid var(--bauhaus-black); border-radius: 50%; background: var(--m3-surface); color: var(--bauhaus-blue); }
+.calendarJoinButton { min-height: 32px; border-radius: 100px; background: var(--bauhaus-blue); font-size: 10px; }
+.calendarJoinButton:hover { background: #0d438f; }
+.meetingPolicyNote { border: 1.5px solid #287c55; border-radius: 16px 16px 4px 16px; background: #e4f1e8; color: #1f5d3e; font-size: 11px; }
+
+/* In-call interface: M3 device surfaces with geometric accents */
+.meetingShell {
+  position: relative;
+  isolation: isolate;
+  background:
+    radial-gradient(circle at 98% 2%, rgba(242,194,48,.16), transparent 22%),
+    var(--canvas);
+}
+.meetingTopbar {
+  position: relative;
+  z-index: 1;
+  border-bottom: 2px solid var(--bauhaus-black);
+  background: rgba(255,253,248,.94);
+}
+.smallMark {
+  border-radius: 11px 11px 3px 11px;
+  background: var(--bauhaus-blue);
+  box-shadow: 3px 3px 0 var(--bauhaus-black);
+}
+.meetingTitleBlock strong { color: var(--bauhaus-black); font-family: "Google Sans","DM Sans",system-ui,sans-serif; }
+.meetingTitleBlock>span { color: #5f625f; }
+.meetingWorkspace { gap: 17px; }
+.stageHeading h1 { color: var(--bauhaus-black); font-family: "Google Sans","DM Sans",system-ui,sans-serif; }
+.stageHeading p:not(.eyebrow) { color: #5f625f; font-size: 11px; }
+.videoTile {
+  border: 2px solid var(--bauhaus-black);
+  border-radius: 20px 20px 5px 20px;
+  background: linear-gradient(135deg,#dce8ff,#bdd1f1);
+  box-shadow: 5px 5px 0 var(--bauhaus-black);
+}
+.videoTile:nth-child(4n+2) { background: linear-gradient(135deg,#f7dbd5,#efb7ad); }
+.videoTile:nth-child(4n+3) { background: linear-gradient(135deg,#fff0bc,#f2c230); }
+.videoTile:nth-child(4n+4) { background: linear-gradient(135deg,#e4f1e8,#b9d9c4); }
+.videoAvatar {
+  border: 3px solid rgba(255,253,248,.9);
+  border-radius: 24px 24px 5px 24px;
+  background: var(--bauhaus-blue);
+  box-shadow: 4px 4px 0 var(--bauhaus-black);
+}
+.videoTile:nth-child(4n+2) .videoAvatar { background: var(--bauhaus-red); }
+.videoTile:nth-child(4n+3) .videoAvatar { background: var(--bauhaus-black); }
+.videoTile:nth-child(4n+4) .videoAvatar { background: #287c55; }
+.tileOverlay { background: linear-gradient(transparent,rgba(27,27,27,.8)); }
+.hostPill { border-radius: 100px; background: var(--bauhaus-yellow); color: var(--bauhaus-black); }
+.meetingControlDock { gap: 14px; }
+.callControls {
+  border: 1.5px solid var(--bauhaus-black);
+  border-radius: 100px;
+  background: var(--m3-surface);
+  box-shadow: 5px 5px 0 var(--bauhaus-black);
+}
+.controlButton { border-radius: 100px; color: #454641; }
+.controlButton>span { border-radius: 50%; background: var(--m3-surface-container); color: var(--bauhaus-black); }
+.controlButton:hover { background: #f0ede5; color: var(--bauhaus-black); }
+.controlButton.activeControl { background: var(--m3-primary-container); color: var(--bauhaus-blue); }
+.controlButton.activeControl>span { background: var(--bauhaus-blue); color: #fff; }
+.controlButton.isOff { background: #f8dfd9; color: #8e211a; }
+.controlButton.isOff>span { background: var(--bauhaus-red); color: #fff; }
+.endCallButton { border-radius: 100px; background: var(--bauhaus-red); }
+.endCallButton:hover { background: #a72922; }
+.meetingSidePanel {
+  border: 1.5px solid var(--bauhaus-black);
+  border-radius: 22px 22px 5px 22px;
+  background: var(--m3-surface);
+  box-shadow: 5px 5px 0 rgba(27,27,27,.9);
+}
+.sidePanelHeader { border-bottom: 1.5px solid #c9c4b8; }
+.sidePanelHeader h2 { color: var(--bauhaus-black); font-family: "Google Sans","DM Sans",system-ui,sans-serif; }
+.sidePanelHeader p { color: #5f625f; }
+.chatMessages { scrollbar-color: #9f9b91 transparent; }
+.chatComposer { border-top: 1.5px solid #c9c4b8; background: var(--m3-surface-low); }
+.chatComposer textarea { border: 1.5px solid #bcb7ac; border-radius: 18px; background: var(--m3-surface); }
+.participantAvatar { border-radius: 12px 12px 4px 12px; background: var(--m3-primary-container); color: var(--bauhaus-blue); }
+.admitButton { border-radius: 50%; background: #287c55; }
+.denyButton { border-radius: 50%; background: var(--bauhaus-red); }
+.participantMuteButton { border-radius: 50%; }
+
+/* Dialogs and forms */
+.dialogScrim { background: rgba(27,27,27,.42); backdrop-filter: blur(9px); }
+.inviteDialog,.settingsDialog {
+  border: 2px solid var(--bauhaus-black);
+  border-radius: 28px 28px 6px 28px;
+  background: var(--m3-surface);
+  color: var(--bauhaus-black);
+  box-shadow: 8px 8px 0 var(--bauhaus-black);
+}
+.dialogClose { border: 1px solid #c9c4b8; background: var(--m3-surface-container); color: var(--bauhaus-black); }
+.dialogClose:hover { background: var(--m3-primary-container); color: var(--bauhaus-blue); }
+.dialogIcon { border-radius: 14px 14px 4px 14px; background: var(--m3-primary-container); color: var(--bauhaus-blue); }
+.inviteDialog h2,.settingsDialog h2 { color: var(--bauhaus-black); font-family: "Google Sans","DM Sans",system-ui,sans-serif; letter-spacing: -.045em; }
+.dialogIntro { color: #5f625f; font-size: 12px; line-height: 1.7; }
+.copyLinkField input { border: 1.5px solid #8c887e; border-radius: 12px; background: var(--m3-surface-low); }
+.copyLinkField button { border: 1.5px solid var(--bauhaus-black); border-radius: 100px; background: var(--m3-primary-container); color: var(--bauhaus-blue); }
+.guestAccessNote { border: 1.5px solid #bcb7ac; border-radius: 16px 16px 4px 16px; background: var(--m3-surface-low); color: #4e504a; font-size: 10px; }
+.guestAccessNote>svg { color: #287c55; }
+.guestAccessNote strong { color: var(--bauhaus-black); }
+.settingsInfo>div { border: 1.5px solid #c9c4b8; border-radius: 13px 13px 4px 13px; background: var(--m3-surface-low); }
+.settingsInfo strong { color: var(--bauhaus-black); }
+.settingsInfo span { color: #5f625f; }
+.turnHelpToggle { color: var(--bauhaus-blue); border-top-color: #c9c4b8; }
+.turnHelpText { background: var(--m3-surface-container); color: #4e504a; }
+.toastNotice { border: 1.5px solid #287c55; border-radius: 16px 16px 4px 16px; background: #e4f1e8; color: #1f5d3e; box-shadow: 4px 4px 0 var(--bauhaus-black); }
+
+/* Sign-in and guest join surfaces follow the same design language. */
+.joinPage,.authGatePage,.guestJoinPage,.waitingRoomPage {
+  background:
+    radial-gradient(circle at 90% 12%,rgba(242,194,48,.22),transparent 27%),
+    radial-gradient(circle at 8% 85%,rgba(21,87,192,.1),transparent 25%),
+    var(--canvas);
+}
+.joinHeader,.authGatePage .joinHeader {
+  border-bottom: 2px solid var(--bauhaus-black);
+  background: rgba(255,253,248,.88);
+}
+.joinCard,.authGateCard,.guestJoinPage .joinCard,.waitingRoomPage .joinCard {
+  border: 1.5px solid var(--bauhaus-black);
+  border-radius: 25px 25px 5px 25px;
+  background: var(--m3-surface);
+  box-shadow: 6px 6px 0 var(--bauhaus-black);
+}
+.joinCard h1,.authGateCard h1 { color: var(--bauhaus-black); font-family: "Google Sans","DM Sans",system-ui,sans-serif; }
+.joinDescription { color: #5f625f; font-size: 12px; }
+.joinIllustration { border: 1.5px solid var(--bauhaus-black); border-radius: 17px 17px 4px 17px; background: var(--m3-surface-container); }
+.illustrationCircle { background: var(--bauhaus-yellow); }
+.circleTwo { background: var(--bauhaus-blue); }
+.illustrationCallCard { border: 1.5px solid var(--bauhaus-black); border-radius: 16px 16px 4px 16px; box-shadow: 4px 4px 0 var(--bauhaus-black); color: var(--bauhaus-blue); }
+.illustrationCallCard>span { color: var(--bauhaus-black); }
+.illustrationBadge { border: 1.5px solid var(--bauhaus-black); border-radius: 50%; background: #e4f1e8; color: #287c55; }
+.joinDisclaimer { border-top-color: #c9c4b8; color: #5f625f; }
+.joinDisclaimer svg { color: #287c55; }
+.authGateCard .brandMark,.joinHeader .brandMark { box-shadow: 3px 3px 0 var(--bauhaus-black); }
+.authGateCard .authSignOutButton { border-radius: 100px; }
+.guestJoinPage .joinHeader,.waitingRoomPage .joinHeader { background: rgba(244,241,232,.8); }
+
+/* Responsive geometry and reduced-motion preference */
+@media (max-width: 900px) {
+  .homeHero { box-shadow: 5px 5px 0 var(--bauhaus-black); }
+  .meetingWorkspace { gap: 14px; }
+  .meetingSidePanel { box-shadow: 4px 4px 0 rgba(27,27,27,.85); }
+}
+@media (max-width: 650px) {
+  .appSidebar { border-bottom: 2px solid var(--bauhaus-black); }
+  .sidebarNewMeeting { box-shadow: 3px 3px 0 var(--bauhaus-black); }
+  .homeHero { border-radius: 21px 21px 5px 21px; box-shadow: 4px 4px 0 var(--bauhaus-black); }
+  .quickActionCard { min-height: 122px; padding: 15px 15px 15px 63px; }
+  .joinByLinkCard { box-shadow: 3px 3px 0 rgba(27,27,27,.85); }
+  .calendarCard,.calendarMeetingsCard { box-shadow: 3px 3px 0 var(--bauhaus-black); }
+  .inviteDialog,.settingsDialog { box-shadow: 5px 5px 0 var(--bauhaus-black); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .bauhausHomeBackdrop span,.homeHero *,.quickActionCard,.primaryButton,.secondaryButton,.controlButton { animation: none !important; transition: none !important; }
+}
+
