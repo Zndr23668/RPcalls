@@ -234,14 +234,9 @@ export function App() {
     });
   }, []);
 
-  // Meeting invitations remain on the guest lobby path; only the non-meeting app entry starts employee SSO.
-  useEffect(() => {
-    if (!authInitialized || authStatus !== "signed-out" || roomId || !supabase) return;
-    const params = new URLSearchParams(window.location.search);
-    if (params.has("sso_token_hash") || params.has("sso") || params.has("meeting") || params.has("chat")) return;
-    window.location.replace("https://rpportal-ten.vercel.app/?sso=rpcalls");
-  }, [authInitialized, authStatus, roomId]);
-
+  // Do not automatically bounce signed-out visitors between the two apps.
+  // Keep the sign-in gate visible; users can explicitly continue through RPportal SSO.
+  
   // Reverse handoff: if an employee is already signed into RPcalls, allow RPportal to reuse that identity.
   useEffect(() => {
     if (authStatus !== "active" || !authUser || !supabase) return;
@@ -1532,6 +1527,9 @@ export function App() {
                     {authBusy ? "Signing in…" : "Sign in with RPportal"} <ArrowLeft className="joinArrow" size={16}/>
                   </button>
                 </form>
+                <a className="primaryButton joinSubmit" href="https://rpportal-ten.vercel.app/?sso=rpcalls" style={{display:"flex",justifyContent:"center",marginTop:12,textDecoration:"none"}}>
+                  Continue with existing RPportal session <ArrowLeft className="joinArrow" size={16}/>
+                </a>
                 <div className="joinDisclaimer"><ShieldCheck size={15}/><span>Only active users in the RPportal user directory can open the workspace. Guests can still join using a meeting invite link.</span></div>
               </>
             )}
