@@ -1035,7 +1035,7 @@ export function App() {
           setRecordingStatus("uploading");
           const blob = new Blob(chunks, { type: recorder?.mimeType || "video/webm" });
           if (!blob.size) throw new Error("The recording was empty.");
-          if (blob.size > 500 * 1024 * 1024) throw new Error("This recording exceeds the 500 MB upload limit. Shorten the meeting or lower recording quality.");
+          if (blob.size > 4 * 1024 * 1024 * 1024) throw new Error("This recording exceeds the 4 GB upload limit. Shorten the meeting or lower recording quality.");
           const fileName = `${safeFileName(title)}-${targetRoomId}.webm`;
           const signed = await recordingApi({
             action: "upload-url", meetingId: targetRoomId, hostToken, fileName,
