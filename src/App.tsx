@@ -157,6 +157,25 @@ export function App() {
   const [authError, setAuthError] = useState("");
   const [authDisplayName, setAuthDisplayName] = useState("");
 
+  // Generate a fresh, subtle Bauhaus composition for each successful workspace login.
+  useEffect(() => {
+    if (authStatus !== "active") return;
+    const root = document.documentElement;
+    const pick = (values: string[]) => values[Math.floor(Math.random() * values.length)];
+    root.style.setProperty("--bauhaus-red-x", pick(["11%", "17%", "23%", "29%", "36%", "42%", "58%", "67%", "76%"]));
+    root.style.setProperty("--bauhaus-red-y", pick(["14%", "22%", "34%", "48%", "61%", "73%", "82%"]));
+    root.style.setProperty("--bauhaus-blue-x", pick(["62%", "69%", "77%", "84%", "91%"]));
+    root.style.setProperty("--bauhaus-blue-y", pick(["24%", "39%", "53%", "67%", "79%", "88%"]));
+    root.style.setProperty("--bauhaus-yellow-x", pick(["24%", "38%", "51%", "66%", "73%", "87%"]));
+    root.style.setProperty("--bauhaus-yellow-y", pick(["12%", "19%", "31%", "44%", "57%", "71%", "84%"]));
+    root.style.setProperty("--bauhaus-drift-x", pick(["-.9%", "-.5%", ".7%", "1.1%", "1.5%", "2%"]));
+    root.style.setProperty("--bauhaus-drift-y", pick(["-.8%", "-.3%", ".4%", ".8%", "1.2%"]));
+    root.style.setProperty("--bauhaus-rotation", pick(["-.45deg", "-.25deg", ".2deg", ".35deg", ".5deg"]));
+    root.style.setProperty("--bauhaus-duration", pick(["29s", "33s", "37s", "41s", "46s"]));
+    root.style.setProperty("--bauhaus-grid-size", pick(["44px", "48px", "52px", "58px", "64px"]));
+    root.style.setProperty("--bauhaus-grid-opacity", pick([".20", ".23", ".26", ".29"]));
+  }, [authStatus]);
+
   const channelRef = useRef<any>(null);
   const peerIdRef = useRef("");
   const identityRef = useRef<{ peerId: string; name: string; isHost: boolean }>({ peerId: "", name: "", isHost: false });
