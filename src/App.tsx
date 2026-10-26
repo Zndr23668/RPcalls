@@ -1516,6 +1516,7 @@ export function App() {
   if (!roomId && !joined && authStatus !== "active") {
     return (
       <div className="joinPage authGatePage">
+        <div className="bauhausBackdrop" aria-hidden="true"><span className="bauhausOrb orbOne"/><span className="bauhausOrb orbTwo"/><span className="bauhausRing"/><span className="bauhausBlock blockOne"/><span className="bauhausBlock blockTwo"/><span className="bauhausBar"/><span className="bauhausDotField"/></div>
         <header className="joinHeader">
           <a className="brandLink" href="/" onClick={(event) => event.preventDefault()}><span className="brandMark">RP</span><strong>RPcalls</strong></a>
           <span className="joinHeaderSecure"><ShieldCheck size={15}/> Remote Professionals workspace</span>
