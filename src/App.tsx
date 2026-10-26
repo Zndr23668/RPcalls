@@ -206,6 +206,30 @@ export function App() {
     };
   }, []);
 
+  // Consume the short-lived, single-use Supabase SSO token immediately and remove it from the address bar.
+  useEffect(() => {
+    if (!supabase) return;
+    const params = new URLSearchParams(window.location.search);
+    const tokenHash = params.get("sso_token_hash");
+    const tokenType = params.get("sso_type");
+    if (!tokenHash || tokenType !== "magiclink") return;
+    params.delete("sso_token_hash");
+    params.delete("sso_type");
+    const cleaned = window.location.pathname + (params.toString() ? "?" + params.toString() : "") + window.location.hash;
+    window.history.replaceState(null, "", cleaned);
+    void supabase.auth.verifyOtp({ token_hash: tokenHash, type: "magiclink" }).then(({ error }) => {
+      if (error) setAuthError("Your sign-in handoff expired or was already used. Open RPportal and try again.");
+    });
+  }, []);
+
+  // Meeting invitations remain on the guest lobby path; only the non-meeting app entry starts employee SSO.
+  useEffect(() => {
+    if (authStatus !== "signed-out" || roomId || !supabase) return;
+    const params = new URLSearchParams(window.location.search);
+    if (params.has("sso_token_hash") || params.has("meeting") || params.has("chat")) return;
+    window.location.replace("https://rpportal-ten.vercel.app/?sso=rpcalls");
+  }, [authStatus, roomId]);
+
   useEffect(() => {
     if (!supabase) {
       setAuthStatus("signed-out");
