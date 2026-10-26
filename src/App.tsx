@@ -142,7 +142,7 @@ export function App() {
   const stopRecordingRef = useRef<(() => Promise<void>) | null>(null);
   const [showInvite, setShowInvite] = useState(false);
   const [inviteCopied, setInviteCopied] = useState(false);
-  const [meetingTab, setMeetingTab] = useState<"overview" | "meetings" | "chats">("overview");
+  const [meetingTab, setMeetingTab] = useState<"overview" | "meetings">("overview");
   const [chatSearch, setChatSearch] = useState("");
   const [showSettings, setShowSettings] = useState(false);
   const [turnHelp, setTurnHelp] = useState(false);
@@ -1715,12 +1715,11 @@ export function App() {
         <nav className="primaryNav">
           <button type="button" className={meetingTab==="overview"?"selected":""} onClick={()=>setMeetingTab("overview")}><Sparkles size={18}/> Overview</button>
           <button type="button" className={meetingTab==="meetings"?"selected":""} onClick={()=>setMeetingTab("meetings")}><CalendarDays size={18}/> Calendar</button>
-          <button type="button" className={meetingTab==="chats"?"selected":""} onClick={()=>setMeetingTab("chats")}><MessageCircle size={18}/> Chats</button>
         </nav>
         <div className="sidebarBottom"><div className="sidebarHelpCard"><span><Headphones size={17}/></span><strong>Need help?</strong><small>Check your connection and browser permissions.</small><button type="button" onClick={()=>setShowSettings(true)}>Connection settings <ArrowLeft size={13}/></button></div><div className="profileMini"><div className="profileMiniAvatar">{displayName.trim().charAt(0).toUpperCase()||"G"}</div><div><strong>{safeName(displayName)||"Guest user"}</strong><small>RPcalls guest</small></div><button type="button" aria-label="Profile options" onClick={()=>setShowSettings(true)}><MoreHorizontal size={17}/></button></div></div>
       </aside>
       <main className="homeMain">
-        <header className="homeTopbar"><div className="crumb">Workspace <span>/</span> {meetingTab==="overview"?"Overview":meetingTab==="meetings"?"Calendar":"Chats"}</div><div className="topbarActions"><span className="topbarStatus"><span className="liveDot"/> {authDisplayName || "RPportal user"}</span><button className="authSignOutButton" type="button" onClick={()=>{void supabase?.auth.signOut();setAuthPassword("");setAuthError("");}} title="Sign out of RPcalls">Sign out</button><button className="iconButton" aria-label="Settings" onClick={()=>setShowSettings(true)}><Settings2 size={18}/></button><div className="profileMiniAvatar topAvatar">{(authDisplayName || displayName).trim().charAt(0).toUpperCase()||"R"}</div></div></header>
+        <header className="homeTopbar"><div className="crumb">Workspace <span>/</span> {meetingTab==="overview"?"Overview":"Calendar"}</div><div className="topbarActions"><span className="topbarStatus"><span className="liveDot"/> {authDisplayName || "RPportal user"}</span><button className="authSignOutButton" type="button" onClick={()=>{void supabase?.auth.signOut();setAuthPassword("");setAuthError("");}} title="Sign out of RPcalls">Sign out</button><button className="iconButton" aria-label="Settings" onClick={()=>setShowSettings(true)}><Settings2 size={18}/></button><div className="profileMiniAvatar topAvatar">{(authDisplayName || displayName).trim().charAt(0).toUpperCase()||"R"}</div></div></header>
         <div className="homeContent">
           {meetingTab==="overview" ? <>
             <section className="homeHero">
