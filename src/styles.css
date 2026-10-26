@@ -211,3 +211,36 @@ a{color:inherit;text-decoration:none}
 @keyframes setup-spark{0%,100%{transform:scale(.7);opacity:.45}50%{transform:scale(1.35);opacity:1}}
 @media(max-width:640px){.homeSetupBackdrop .setupOrbit{width:74vw;height:34vw}.homeSetupBackdrop .orbitRed{width:63vw;height:29vw}.homeSetupBackdrop .orbitYellow{width:51vw;height:23vw}.homeSetupBackdrop .setupHalo{width:90vw}.homeSetupBackdrop .haloInner{width:65vw}.homeSetupBackdrop .tileBlue{left:13%;top:28%}.homeSetupBackdrop .tileRed{left:auto;right:10%;top:39%}.homeSetupBackdrop .tileYellow{left:18%;top:auto;bottom:16%}.homeSetupBackdrop .tileGreen{left:auto;right:17%;top:auto;bottom:19%}}
 @media(prefers-reduced-motion:reduce){.homeSetupBackdrop span{animation:none!important;will-change:auto}}
+
+
+/* Each fresh app load selects a different Google Home-inspired Bauhaus composition. */
+.homeSetupBackdrop[class*="setupVariant"] .setupOrbit{transition:width .7s ease,height .7s ease,border-radius .7s ease}
+.homeSetupBackdrop.setupVariant1 .orbitBlue{width:min(54vw,620px);height:min(15vw,175px);transform:translate(-50%,-50%) rotate(18deg);border-top-color:#34a853;border-right-color:#34a853}
+.homeSetupBackdrop.setupVariant1 .orbitRed{width:min(31vw,360px);height:min(31vw,360px);border-radius:50%;border-left-color:#4285f4;border-bottom-color:#4285f4}
+.homeSetupBackdrop.setupVariant1 .orbitYellow{width:min(40vw,460px);height:min(10vw,115px);transform:translate(-50%,-50%) rotate(-55deg);border-top-color:#ea4335;border-right-color:#ea4335}
+.homeSetupBackdrop.setupVariant1 .setupTile{border-radius:50%}
+.homeSetupBackdrop.setupVariant1 .tileBlue{left:calc(50% - min(34vw,390px));top:48%}
+.homeSetupBackdrop.setupVariant1 .tileRed{right:calc(50% - min(34vw,390px));left:auto;top:25%}
+.homeSetupBackdrop.setupVariant2 .orbitBlue{width:min(31vw,360px);height:min(31vw,360px);border-radius:36%;transform:translate(-50%,-50%) rotate(25deg);border-top-color:#4285f4;border-right-color:#4285f4}
+.homeSetupBackdrop.setupVariant2 .orbitRed{width:min(52vw,600px);height:min(18vw,210px);transform:translate(-50%,-50%) rotate(-12deg);border-bottom-color:#fbbc04;border-left-color:#fbbc04}
+.homeSetupBackdrop.setupVariant2 .orbitYellow{width:min(24vw,280px);height:min(24vw,280px);border-radius:35%;transform:translate(-50%,-50%) rotate(45deg);border-top-color:#34a853;border-right-color:#34a853}
+.homeSetupBackdrop.setupVariant2 .setupCore{border-radius:34%;transform:translate(-50%,-50%) rotate(45deg)}
+.homeSetupBackdrop.setupVariant2 .setupCore i{border-radius:30%;transform:none!important}
+.homeSetupBackdrop.setupVariant3 .orbitBlue{width:min(60vw,690px);height:min(12vw,140px);transform:translate(-50%,-50%) rotate(58deg);border-top-color:#fbbc04;border-right-color:#fbbc04}
+.homeSetupBackdrop.setupVariant3 .orbitRed{width:min(48vw,550px);height:min(27vw,310px);transform:translate(-50%,-50%) rotate(-38deg);border-bottom-color:#34a853;border-left-color:#34a853}
+.homeSetupBackdrop.setupVariant3 .orbitYellow{width:min(34vw,390px);height:min(8vw,95px);transform:translate(-50%,-50%) rotate(5deg);border-top-color:#ea4335;border-right-color:#ea4335}
+.homeSetupBackdrop.setupVariant3 .setupTile{width:clamp(20px,3vw,36px);border-radius:8px}
+.homeSetupBackdrop.setupVariant3 .tileRed{top:19%;left:calc(50% + min(30vw,345px))}
+.homeSetupBackdrop.setupVariant4 .orbitBlue{width:min(25vw,290px);height:min(25vw,290px);border-radius:50%;transform:translate(-50%,-50%) rotate(0deg);border-top-color:#ea4335;border-right-color:#ea4335}
+.homeSetupBackdrop.setupVariant4 .orbitRed{width:min(40vw,460px);height:min(40vw,460px);border-radius:50%;transform:translate(-50%,-50%) rotate(45deg);border-bottom-color:#4285f4;border-left-color:#4285f4}
+.homeSetupBackdrop.setupVariant4 .orbitYellow{width:min(55vw,630px);height:min(17vw,195px);transform:translate(-50%,-50%) rotate(-28deg);border-top-color:#34a853;border-right-color:#34a853}
+.homeSetupBackdrop.setupVariant4 .setupCore{width:clamp(90px,12vw,140px)}
+.homeSetupBackdrop.setupVariant5 .orbitBlue{width:min(49vw,560px);height:min(29vw,330px);transform:translate(-50%,-50%) rotate(-52deg);border-top-color:#34a853;border-right-color:#34a853}
+.homeSetupBackdrop.setupVariant5 .orbitRed{width:min(28vw,320px);height:min(28vw,320px);border-radius:28%;transform:translate(-50%,-50%) rotate(22deg);border-bottom-color:#fbbc04;border-left-color:#fbbc04}
+.homeSetupBackdrop.setupVariant5 .orbitYellow{width:min(57vw,650px);height:min(13vw,150px);transform:translate(-50%,-50%) rotate(34deg);border-top-color:#4285f4;border-right-color:#4285f4}
+.homeSetupBackdrop.setupVariant5 .setupTile{border-radius:8px 50% 50% 50%}
+.homeSetupBackdrop.setupVariant5 .setupCore{border-radius:24%}
+@media(max-width:640px){
+.homeSetupBackdrop.setupVariant1 .orbitBlue,.homeSetupBackdrop.setupVariant2 .orbitRed,.homeSetupBackdrop.setupVariant3 .orbitRed,.homeSetupBackdrop.setupVariant4 .orbitYellow,.homeSetupBackdrop.setupVariant5 .orbitYellow{width:76vw;height:34vw}
+.homeSetupBackdrop.setupVariant1 .orbitRed,.homeSetupBackdrop.setupVariant2 .orbitBlue,.homeSetupBackdrop.setupVariant4 .orbitBlue,.homeSetupBackdrop.setupVariant5 .orbitRed{width:58vw;height:58vw}
+}
