@@ -146,6 +146,13 @@ export function App() {
   const [turnHelp, setTurnHelp] = useState(false);
   const [iceServersDraft, setIceServersDraft] = useState("");
   const [chatUnread, setChatUnread] = useState(0);
+  const [authUser, setAuthUser] = useState<{ id: string; email?: string } | null>(null);
+  const [authStatus, setAuthStatus] = useState<"loading" | "signed-out" | "active" | "inactive">("loading");
+  const [authEmail, setAuthEmail] = useState("");
+  const [authPassword, setAuthPassword] = useState("");
+  const [authBusy, setAuthBusy] = useState(false);
+  const [authError, setAuthError] = useState("");
+  const [authDisplayName, setAuthDisplayName] = useState("");
 
   const channelRef = useRef<any>(null);
   const peerIdRef = useRef("");
@@ -176,6 +183,65 @@ export function App() {
       setIsHost(savedHost);
     }
   }, [roomId]);
+
+  // RPcalls uses the same Supabase Auth project and profile records as RPportal.
+  useEffect(() => {
+    if (!supabase) {
+      setAuthUser(null);
+      setAuthStatus("signed-out");
+      return;
+    }
+    let mounted = true;
+    void supabase.auth.getSession().then(({ data }) => {
+      if (mounted) setAuthUser(data.session?.user ? { id: data.session.user.id, email: data.session.user.email } : null);
+    });
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (mounted) setAuthUser(session?.user ? { id: session.user.id, email: session.user.email } : null);
+    });
+    return () => {
+      mounted = false;
+      subscription.unsubscribe();
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!supabase) {
+      setAuthStatus("signed-out");
+      return;
+    }
+    if (!authUser) {
+      setAuthStatus("signed-out");
+      setAuthDisplayName("");
+      return;
+    }
+    let cancelled = false;
+    setAuthStatus("loading");
+    void supabase
+      .from("profiles")
+      .select("display_name, is_active")
+      .eq("id", authUser.id)
+      .maybeSingle()
+      .then(async ({ data, error }) => {
+        if (cancelled) return;
+        if (error) {
+          setAuthStatus("inactive");
+          setAuthError("We couldn't verify your RPportal account. Check your connection or contact the RPportal administrator.");
+          return;
+        }
+        if (!data || data.is_active !== true) {
+          setAuthStatus("inactive");
+          setAuthError("This login does not have an active RPportal user profile. Ask an administrator to activate your account.");
+          void supabase?.auth.signOut();
+          return;
+        }
+        setAuthStatus("active");
+        setAuthError("");
+        const profileName = (data.display_name || authUser.email?.split("@")[0] || "RPportal user").trim();
+        setAuthDisplayName(profileName);
+        setDisplayName((current) => current.trim() ? current : profileName);
+      });
+    return () => { cancelled = true; };
+  }, [authUser]);
 
   useEffect(() => {
     try {
@@ -208,6 +274,22 @@ export function App() {
   const notify = (text: string) => {
     setNotice(text);
     window.setTimeout(() => setNotice(""), 3600);
+  };
+
+  const handleRPportalLogin = async (event: FormEvent) => {
+    event.preventDefault();
+    if (!supabase) {
+      setAuthError("RPcalls authentication is not configured. Contact the administrator.");
+      return;
+    }
+    setAuthBusy(true);
+    setAuthError("");
+    const { error } = await supabase.auth.signInWithPassword({
+      email: authEmail.trim(),
+      password: authPassword,
+    });
+    if (error) setAuthError("Sign-in failed. Check your RPportal email and password, then try again.");
+    setAuthBusy(false);
   };
 
   const currentRoomLink = (id = roomId, mode: "meeting" | "chat" = roomMode, title = meetingTitle) => {
@@ -1355,6 +1437,53 @@ export function App() {
     return grouped;
   }, [calendarItems]);
 
+  if (!roomId && !joined && authStatus !== "active") {
+    return (
+      <div className="joinPage authGatePage">
+        <header className="joinHeader">
+          <a className="brandLink" href="/" onClick={(event) => event.preventDefault()}><span className="brandMark">RP</span><strong>RPcalls</strong></a>
+          <span className="joinHeaderSecure"><ShieldCheck size={15}/> Remote Professionals workspace</span>
+        </header>
+        <main className="authGateGrid">
+          <section className="authGateCard">
+            <div className="dialogIcon"><ShieldCheck size={23}/></div>
+            <p className="eyebrow">WORKSPACE SIGN IN</p>
+            {authStatus === "loading" ? (
+              <>
+                <h1>Checking your account…</h1>
+                <p className="joinDescription">Verifying your RPportal login securely.</p>
+                <div className="authLoadingBar"><span/></div>
+              </>
+            ) : (
+              <>
+                <h1>Sign in to RPcalls.</h1>
+                <p className="joinDescription">Use the same email and password you already use for RPportal. No second account is needed.</p>
+                <form className="joinForm authGateForm" onSubmit={(event) => void handleRPportalLogin(event)}>
+                  <label className="fieldLabel">RPportal email
+                    <input type="email" autoComplete="username" value={authEmail} onChange={(event) => setAuthEmail(event.target.value)} placeholder="you@company.com" required/>
+                  </label>
+                  <label className="fieldLabel">Password
+                    <input type="password" autoComplete="current-password" value={authPassword} onChange={(event) => setAuthPassword(event.target.value)} placeholder="Your RPportal password" required/>
+                  </label>
+                  {authError && <div className="authGateError" role="alert"><AlertCircle size={16}/><span>{authError}</span></div>}
+                  <button className="primaryButton joinSubmit" type="submit" disabled={authBusy || !supabase}>
+                    {authBusy ? "Signing in…" : "Sign in with RPportal"} <ArrowLeft className="joinArrow" size={16}/>
+                  </button>
+                </form>
+                <div className="joinDisclaimer"><ShieldCheck size={15}/><span>Only active users in the RPportal user directory can open the workspace. Guests can still join using a meeting invite link.</span></div>
+              </>
+            )}
+          </section>
+          <aside className="joinAside">
+            <div className="joinQuote"><ShieldCheck size={18}/><h2>One account. Two apps.</h2><p>Your RPportal credentials are checked against the existing Remote Professionals user directory. RPcalls does not create or store a separate password.</p></div>
+            <div className="joinFeature"><span><Users size={17}/></span><div><strong>Guest links still work</strong><small>Invited participants can join without an RPportal account.</small></div></div>
+          </aside>
+        </main>
+        <footer className="joinFooter"><span>© RPcalls · Remote Professionals</span><span>Secured by Supabase Auth</span></footer>
+      </div>
+    );
+  }
+
   if (joined && roomId && roomMode === "meeting" && !isAdmitted) {
     return (
       <div className="joinPage">
@@ -1509,7 +1638,7 @@ export function App() {
         <div className="sidebarBottom"><div className="sidebarHelpCard"><span><Headphones size={17}/></span><strong>Need help?</strong><small>Check your connection and browser permissions.</small><button type="button" onClick={()=>setShowSettings(true)}>Connection settings <ArrowLeft size={13}/></button></div><div className="profileMini"><div className="profileMiniAvatar">{displayName.trim().charAt(0).toUpperCase()||"G"}</div><div><strong>{safeName(displayName)||"Guest user"}</strong><small>RPcalls guest</small></div><button type="button" aria-label="Profile options" onClick={()=>setShowSettings(true)}><MoreHorizontal size={17}/></button></div></div>
       </aside>
       <main className="homeMain">
-        <header className="homeTopbar"><div className="crumb">Workspace <span>/</span> {meetingTab==="overview"?"Overview":meetingTab==="meetings"?"Calendar":"Chats"}</div><div className="topbarActions"><span className="topbarStatus"><span className="liveDot"/> Realtime calls</span><button className="iconButton" aria-label="Settings" onClick={()=>setShowSettings(true)}><Settings2 size={18}/></button><div className="profileMiniAvatar topAvatar">{displayName.trim().charAt(0).toUpperCase()||"G"}</div></div></header>
+        <header className="homeTopbar"><div className="crumb">Workspace <span>/</span> {meetingTab==="overview"?"Overview":meetingTab==="meetings"?"Calendar":"Chats"}</div><div className="topbarActions"><span className="topbarStatus"><span className="liveDot"/> {authDisplayName || "RPportal user"}</span><button className="authSignOutButton" type="button" onClick={()=>{void supabase?.auth.signOut();setAuthPassword("");setAuthError("");}} title="Sign out of RPcalls">Sign out</button><button className="iconButton" aria-label="Settings" onClick={()=>setShowSettings(true)}><Settings2 size={18}/></button><div className="profileMiniAvatar topAvatar">{(authDisplayName || displayName).trim().charAt(0).toUpperCase()||"R"}</div></div></header>
         <div className="homeContent">
           {meetingTab==="overview" ? <>
             <section className="homeHero">

@@ -101,3 +101,23 @@ a{color:inherit;text-decoration:none}
 @media (max-width: 720px) {
   .recordingBadge { font-size: 9px; padding: 4px 7px; }
 }
+
+
+/* Shared RPportal account sign-in for RPcalls */
+.authGateGrid{display:grid;grid-template-columns:minmax(0,480px) minmax(220px,320px);align-items:center;justify-content:center;gap:32px;width:100%;max-width:980px;padding:34px 22px;margin:auto}
+.authGateCard{padding:32px;border:1px solid #e4e6f3;border-radius:24px;background:#fff;box-shadow:0 16px 45px rgba(36,44,92,.07)}
+.authGateCard h1{margin:0;font:800 clamp(27px,4vw,35px)/1.12 Manrope,sans-serif;letter-spacing:-.06em}
+.authGateCard .joinDescription{margin:11px 0 22px}
+.authGateForm{gap:14px}
+.authGateForm .fieldLabel input{height:44px;background:#fff}
+.authGateForm .joinSubmit{display:flex;align-items:center;justify-content:center;gap:9px}
+.authGateForm .joinSubmit:disabled{opacity:.65;cursor:wait}
+.authGateError{display:flex;align-items:flex-start;gap:9px;padding:11px 12px;border:1px solid #f1caca;border-radius:12px;background:#fff4f4;color:#a83232;font-size:10px;line-height:1.55}
+.authGateError svg{flex:0 0 16px}
+.authLoadingBar{height:5px;margin:22px 0 8px;border-radius:9px;background:#eeeff8;overflow:hidden}
+.authLoadingBar span{display:block;width:40%;height:100%;border-radius:9px;background:#6257d4;animation:authLoading 1.2s ease-in-out infinite alternate}
+@keyframes authLoading{to{transform:translateX(150%)}}
+.authSignOutButton{min-height:31px;padding:0 10px;border:1px solid #e3e5f1;border-radius:9px;background:#fff;color:#6c728b;font-size:9px;font-weight:750}
+.authSignOutButton:hover{border-color:#cbc7f2;background:#f7f6ff;color:var(--primary)}
+@media(max-width:760px){.authGateGrid{grid-template-columns:minmax(0,520px);gap:15px;padding:24px 16px}.authGateCard{padding:25px 20px}.authGateGrid .joinAside{display:grid;grid-template-columns:1fr 1fr}.authGateGrid .joinQuote{grid-column:1/-1}}
+@media(max-width:500px){.authGateGrid .joinAside{grid-template-columns:1fr}.authGateGrid .joinQuote{grid-column:auto}.authGateCard{padding:22px 17px}.authSignOutButton{font-size:8px;padding:0 7px}}
