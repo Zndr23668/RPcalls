@@ -150,6 +150,7 @@ export function App() {
   const [chatUnread, setChatUnread] = useState(0);
   const [authUser, setAuthUser] = useState<{ id: string; email?: string } | null>(null);
   const [authStatus, setAuthStatus] = useState<"loading" | "signed-out" | "active" | "inactive">("loading");
+  const [authInitialized, setAuthInitialized] = useState(false);
   const [authEmail, setAuthEmail] = useState("");
   const [authPassword, setAuthPassword] = useState("");
   const [authBusy, setAuthBusy] = useState(false);
@@ -195,10 +196,21 @@ export function App() {
     }
     let mounted = true;
     void supabase.auth.getSession().then(({ data }) => {
-      if (mounted) setAuthUser(data.session?.user ? { id: data.session.user.id, email: data.session.user.email } : null);
+      if (mounted) {
+        setAuthUser(data.session?.user ? { id: data.session.user.id, email: data.session.user.email } : null);
+        setAuthInitialized(true);
+      }
+    }).catch(() => {
+      if (mounted) {
+        setAuthUser(null);
+        setAuthInitialized(true);
+      }
     });
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      if (mounted) setAuthUser(session?.user ? { id: session.user.id, email: session.user.email } : null);
+      if (mounted) {
+        setAuthUser(session?.user ? { id: session.user.id, email: session.user.email } : null);
+        setAuthInitialized(true);
+      }
     });
     return () => {
       mounted = false;
@@ -224,11 +236,11 @@ export function App() {
 
   // Meeting invitations remain on the guest lobby path; only the non-meeting app entry starts employee SSO.
   useEffect(() => {
-    if (authStatus !== "signed-out" || roomId || !supabase) return;
+    if (!authInitialized || authStatus !== "signed-out" || roomId || !supabase) return;
     const params = new URLSearchParams(window.location.search);
     if (params.has("sso_token_hash") || params.has("sso") || params.has("meeting") || params.has("chat")) return;
     window.location.replace("https://rpportal-ten.vercel.app/?sso=rpcalls");
-  }, [authStatus, roomId]);
+  }, [authInitialized, authStatus, roomId]);
 
   // Reverse handoff: if an employee is already signed into RPcalls, allow RPportal to reuse that identity.
   useEffect(() => {
