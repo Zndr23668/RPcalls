@@ -231,3 +231,10 @@ body::after {
 @media (prefers-reduced-motion: reduce) {
   body::before { animation: none; }
 }
+
+
+/* Use the same animated waiting-room Bauhaus backdrop on the workspace login page. */
+.authGatePage{position:relative;isolation:isolate;overflow:hidden;background:#f7f5f0}
+.authGatePage .joinHeader,.authGatePage .authGateGrid,.authGatePage .joinFooter{position:relative;z-index:1}
+.authGatePage .joinHeader{background:rgba(247,245,240,.52);backdrop-filter:blur(16px);border-color:rgba(255,255,255,.45)}
+.authGatePage .authGateCard{background:rgba(255,255,255,.84);backdrop-filter:blur(24px);border-color:rgba(255,255,255,.8);box-shadow:0 24px 80px rgba(35,43,68,.13)}
