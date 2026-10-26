@@ -6,6 +6,7 @@
 
 - Start a video meeting or a separate chat-only room and copy/share its unique invite link.
 - External participants can join in a browser by entering a display name; they do not need a Remote Professionals account.
+- The login page lets external guests enter a meeting ID or paste an invite link without signing in to RPportal.
 - Multi-participant audio/video calls using WebRTC mesh connections.
 - Live meeting chat, separate shareable chat rooms, participant list, mute/unmute, camera on/off, raise hand, and screen sharing.
 - Responsive meeting workspace, guest join screen, and Material-inspired UI.
