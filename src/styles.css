@@ -238,3 +238,12 @@ body::after {
 .authGatePage .joinHeader,.authGatePage .authGateGrid,.authGatePage .joinFooter{position:relative;z-index:1}
 .authGatePage .joinHeader{background:rgba(247,245,240,.52);backdrop-filter:blur(16px);border-color:rgba(255,255,255,.45)}
 .authGatePage .authGateCard{background:rgba(255,255,255,.84);backdrop-filter:blur(24px);border-color:rgba(255,255,255,.8);box-shadow:0 24px 80px rgba(35,43,68,.13)}
+
+
+/* External guests can enter a room ID directly from the workspace login screen. */
+.guestMeetingDivider{display:flex;align-items:center;gap:12px;margin:18px 0 14px;color:#9196ab;font-size:9px;font-weight:800;letter-spacing:.09em}
+.guestMeetingDivider:before,.guestMeetingDivider:after{content:"";height:1px;flex:1;background:#eceef6}
+.authGateGuestForm{gap:10px}
+.authGateGuestForm .fieldLabel input{height:44px;background:#fff}
+.authGateGuestForm .joinSubmit{display:flex;align-items:center;justify-content:center;gap:8px;width:100%;height:44px;margin-top:2px}
+.guestMeetingHint{margin:0;color:#8a90a5;font-size:9px;line-height:1.6}
