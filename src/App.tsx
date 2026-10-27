@@ -207,13 +207,16 @@ export function App() {
 
   useEffect(() => {
     if (!roomId) return;
-    let savedHost = false;
-    try { savedHost = Boolean(sessionStorage.getItem(hostStorageKey(roomId))); } catch { /* restricted storage */ }
-    // Interviewer host links carry host=1. Preserve that capability through
-    // the roomId state update; otherwise this effect overwrites joinRoom's
-    // isHost=true with false before the host controls and recording can start.
-    const hostLink = new URLSearchParams(window.location.search).get("host") === "1";
-    setIsHost(savedHost || hostLink);
+    let savedHostToken = "";
+    try { savedHostToken = sessionStorage.getItem(hostStorageKey(roomId)) || ""; } catch { /* restricted storage */ }
+    const params = new URLSearchParams(window.location.search);
+    const linkToken = params.get("hostToken") || "";
+    const hostLink = params.get("host") === "1" && validHostRecordingToken(linkToken);
+    if (hostLink) {
+      savedHostToken = linkToken;
+      try { sessionStorage.setItem(hostStorageKey(roomId), linkToken); } catch { /* recording will report unavailable storage */ }
+    }
+    setIsHost(Boolean(savedHostToken) || hostLink);
   }, [roomId]);
 
   // RPcalls uses the same Supabase Auth project and profile records as RPportal.
