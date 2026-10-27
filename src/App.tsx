@@ -38,6 +38,7 @@ const randomId = (bytes = 20) => {
   return Array.from(values, (v) => v.toString(16).padStart(2, "0")).join("");
 };
 const hostStorageKey = (id: string) => `rpcalls:host:${id}`;
+const validHostRecordingToken = (value: string) => /^[a-f0-9]{64}$/.test(value);
 const safeName = (value: string) => value.trim().slice(0, 50);
 const localDateValue = (date: Date) => {
   const local = new Date(date.getTime() - date.getTimezoneOffset() * 60000);
