@@ -754,9 +754,15 @@ export function App() {
     }
     const cleanName = safeName(displayName) || "Guest";
     const thisPeerId = randomId(12);
-    const host = hostOverride || Boolean(initialParams.get("host")) || (() => {
-      try { return Boolean(sessionStorage.getItem(hostStorageKey(targetRoomId))); } catch { return false; }
-    })();
+    const hostLinkToken = initialParams.get("hostToken") || "";
+    const validHostLink = initialParams.get("host") === "1" && validHostRecordingToken(hostLinkToken);
+    let storedHostToken = "";
+    try { storedHostToken = sessionStorage.getItem(hostStorageKey(targetRoomId)) || ""; } catch { /* restricted storage */ }
+    const host = hostOverride || validHostLink || Boolean(storedHostToken);
+    if (host) {
+      const token = validHostLink ? hostLinkToken : storedHostToken || randomId(24);
+      try { sessionStorage.setItem(hostStorageKey(targetRoomId), token); } catch { /* recording will report if storage is unavailable */ }
+    }
     const admitted = host || mode === "chat";
     const title = safeName(titleOverride || meetingTitle || "RPcalls meeting") || "RPcalls meeting";
     setBusy(true);
