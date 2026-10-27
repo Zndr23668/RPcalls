@@ -247,3 +247,47 @@ body::after {
 .authGateGuestForm .fieldLabel input{height:44px;background:#fff}
 .authGateGuestForm .joinSubmit{display:flex;align-items:center;justify-content:center;gap:8px;width:100%;height:44px;margin-top:2px}
 .guestMeetingHint{margin:0;color:#8a90a5;font-size:9px;line-height:1.6}
+
+
+/* Screen shares take over the meeting stage while participant tiles remain available below. */
+.videoGrid.screenShareActive{
+  grid-template-columns:repeat(auto-fit,minmax(180px,1fr));
+  grid-template-rows:none;
+  grid-auto-rows:auto;
+  align-content:start;
+}
+.videoGrid.screenShareActive .videoTile.isScreenShare{
+  grid-column:1 / -1;
+  width:100%;
+  min-height:clamp(280px,60vh,720px);
+  max-height:75vh;
+  aspect-ratio:16 / 9;
+  background:#10121c;
+  border-color:#343746;
+  box-shadow:0 10px 30px rgba(15,18,35,.16);
+}
+.videoGrid.screenShareActive .videoTile.isScreenShare video{
+  object-fit:contain;
+  background:#10121c;
+}
+.videoTile.isScreenShare .tileOverlay{
+  padding:44px 18px 15px;
+}
+.videoTile.isScreenShare .tileName{
+  gap:9px;
+  font-size:12px;
+}
+@media(max-width:650px){
+  .videoGrid.screenShareActive{
+    grid-template-columns:repeat(2,minmax(0,1fr));
+    grid-template-rows:none;
+  }
+  .videoGrid.screenShareActive .videoTile.isScreenShare{
+    min-height:clamp(220px,48vh,450px);
+    max-height:65vh;
+    grid-column:1 / -1;
+    aspect-ratio:16 / 9;
+  }
+  .videoTile.isScreenShare .tileOverlay{padding:28px 9px 9px}
+  .videoTile.isScreenShare .tileName{font-size:9px;gap:5px}
+}
