@@ -205,11 +205,14 @@ export function App() {
   const [processedVideoStream, setProcessedVideoStream] = useState<MediaStream | null>(null);
 
   useEffect(() => {
-    if (roomId) {
-      let savedHost = false;
-      try { savedHost = Boolean(sessionStorage.getItem(hostStorageKey(roomId))); } catch { /* restricted storage */ }
-      setIsHost(savedHost);
-    }
+    if (!roomId) return;
+    let savedHost = false;
+    try { savedHost = Boolean(sessionStorage.getItem(hostStorageKey(roomId))); } catch { /* restricted storage */ }
+    // Interviewer host links carry host=1. Preserve that capability through
+    // the roomId state update; otherwise this effect overwrites joinRoom's
+    // isHost=true with false before the host controls and recording can start.
+    const hostLink = new URLSearchParams(window.location.search).get("host") === "1";
+    setIsHost(savedHost || hostLink);
   }, [roomId]);
 
   // RPcalls uses the same Supabase Auth project and profile records as RPportal.
@@ -766,6 +769,9 @@ export function App() {
     try { localStorage.setItem("rpcalls:name", cleanName); } catch { /* optional */ }
     const params = new URLSearchParams({ [mode === "chat" ? "chat" : "meeting"]: targetRoomId });
     if (mode === "meeting") params.set("title", title);
+    // Keep the private interviewer host flag in the address bar because the
+    // roomId effect reads it to restore the correct host role after joining.
+    if (host && mode === "meeting") params.set("host", "1");
     history.replaceState(null, "", "/?" + params.toString());
     peerIdRef.current = thisPeerId;
     identityRef.current = { peerId: thisPeerId, name: cleanName, isHost: host };
