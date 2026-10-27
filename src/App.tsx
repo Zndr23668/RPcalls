@@ -15,6 +15,7 @@ type PresencePerson = {
   admitted?: boolean;
   micOn?: boolean;
   cameraOn?: boolean;
+  sharingScreen?: boolean;
   raised?: boolean;
   joinedAt?: number;
 };
@@ -53,7 +54,7 @@ const safeFileName = (value: string) => value.replace(/[\\/:*?"<>|]/g, "_").repl
 const timeLabel = (value: number) => new Date(value).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
 
 function VideoTile({
-  name, stream, muted = false, cameraOn = true, local = false, isHost = false,
+  name, stream, muted = false, cameraOn = true, local = false, isHost = false, screenSharing = false, micOn,
 }: {
   name: string;
   stream?: MediaStream | null;
@@ -61,6 +62,8 @@ function VideoTile({
   cameraOn?: boolean;
   local?: boolean;
   isHost?: boolean;
+  screenSharing?: boolean;
+  micOn?: boolean;
 }) {
   const ref = useRef<HTMLVideoElement | null>(null);
   useEffect(() => {
@@ -69,21 +72,22 @@ function VideoTile({
     video.srcObject = stream || null;
     if (stream) void video.play().catch(() => undefined);
   }, [stream]);
-  const hasVideo = Boolean(stream?.getVideoTracks().some((track) => track.readyState === "live") && cameraOn);
+  // A shared screen is a video source even when the sharer's camera is off.
+  const hasVideo = Boolean(stream?.getVideoTracks().some((track) => track.readyState === "live") && (cameraOn || screenSharing));
   const initials = name.split(/\s+/).filter(Boolean).slice(0, 2).map((part) => part[0]?.toUpperCase()).join("") || "?";
   return (
-    <article className={`videoTile ${local ? "isLocal" : ""} ${hasVideo ? "hasVideo" : ""}`}>
+    <article className={`videoTile ${local ? "isLocal" : ""} ${hasVideo ? "hasVideo" : ""} ${screenSharing ? "isScreenShare" : ""}`}>
       <video ref={ref} autoPlay playsInline muted={muted} className={hasVideo ? "" : "audioOnlyVideo"} />
       {!hasVideo && (
         <div className="videoAvatarStage">
           <div className="videoAvatar">{initials}</div>
-          <span>{cameraOn ? "Camera off" : "Camera off"}</span>
+          <span>Camera off</span>
         </div>
       )}
       <div className="tileOverlay">
-        <div className="tileName"><span className={`presenceDot ${stream ? "online" : ""}`} />{name}{local ? " (You)" : ""}{isHost && <span className="hostPill">Organizer</span>}</div>
+        <div className="tileName"><span className={`presenceDot ${stream ? "online" : ""}`} />{name}{local ? " (You)" : ""}{isHost && <span className="hostPill">Organizer</span>}{screenSharing && <span className="hostPill">Sharing screen</span>}</div>
         <div className="tileStatus">
-          {!stream?.getAudioTracks().some((track) => track.enabled) && <span title="Microphone muted"><MicOff size={13} /></span>}
+          {micOn === false && <span title="Microphone muted" aria-label="Microphone muted"><MicOff size={13} /></span>}
         </div>
       </div>
     </article>
@@ -181,7 +185,7 @@ export function App() {
   const channelRef = useRef<any>(null);
   const peerIdRef = useRef("");
   const identityRef = useRef<{ peerId: string; name: string; isHost: boolean }>({ peerId: "", name: "", isHost: false });
-  const presenceRef = useRef({ micOn: true, cameraOn: true, raised: false, admitted: false });
+  const presenceRef = useRef({ micOn: true, cameraOn: true, raised: false, admitted: false, sharingScreen: false });
   const localStreamRef = useRef<MediaStream | null>(null);
   const screenStreamRef = useRef<MediaStream | null>(null);
   const pcsRef = useRef<Map<string, RTCPeerConnection>>(new Map());
@@ -558,10 +562,14 @@ export function App() {
     pcsRef.current.set(remoteId, pc);
     const local = localStreamRef.current;
     const outgoing = processedVideoStreamRef.current;
+    const activeScreenTrack = screenStreamRef.current?.getVideoTracks().find((track) => track.readyState === "live") || null;
     local?.getTracks().forEach((track) => {
+      // Screen share replaces the camera track for new peers too.
+      if (track.kind === "video" && activeScreenTrack) return;
       const sendTrack = track.kind === "video" && outgoing ? outgoing.getVideoTracks()[0] : track;
       if (sendTrack) pc.addTrack(sendTrack, sendTrack === track ? local : outgoing!);
     });
+    if (activeScreenTrack && screenStreamRef.current) pc.addTrack(activeScreenTrack, screenStreamRef.current);
     if (peerIdRef.current && peerIdRef.current.localeCompare(remoteId) < 0) {
       const dataChannel = pc.createDataChannel("rpcalls-files", { ordered: true });
       bindDataChannel(remoteId, dataChannel);
@@ -695,6 +703,7 @@ export function App() {
     setCameraOn(true);
     setRaised(false);
     setSharingScreen(false);
+    presenceRef.current = { micOn: true, cameraOn: true, raised: false, admitted: false, sharingScreen: false };
     setConnectionState("Ready");
     setBusy(false);
   };
@@ -769,6 +778,7 @@ export function App() {
       setLocalStream(null);
       setMuted(true);
       setCameraOn(false);
+      presenceRef.current = { ...presenceRef.current, micOn: false, cameraOn: false, sharingScreen: false };
     }
     presenceRef.current = { ...presenceRef.current, admitted };
     const channel = supabase.channel(`rpcalls:meeting:${targetRoomId}`, {
@@ -1355,17 +1365,40 @@ export function App() {
     }
   };
 
+  const replaceOutgoingVideoTrack = async (pc: RTCPeerConnection, remoteId: string, track: MediaStreamTrack, source: MediaStream) => {
+    const sender = pc.getSenders().find((item) => item.track?.kind === "video");
+    if (sender) {
+      await sender.replaceTrack(track);
+      return;
+    }
+    // Do not require a camera stream to add the screen track; camera-off guests can still share.
+    pc.addTrack(track, source);
+    if (peerIdRef.current.localeCompare(remoteId) < 0) await makeOffer(remoteId);
+    else await sendSignal({ to: remoteId, kind: "renegotiate-request" });
+  };
+
+  const stopScreenShare = () => {
+    const currentShare = screenStreamRef.current;
+    screenStreamRef.current = null;
+    if (currentShare) currentShare.getTracks().forEach((track) => {
+      track.onended = null;
+      track.stop();
+    });
+    setScreenStream(null);
+    setSharingScreen(false);
+    void trackPresence({ sharingScreen: false });
+    // If no camera track exists, keep the ended sender so the next share can reuse it.
+    const cameraTrack = localStreamRef.current?.getVideoTracks().find((track) => track.readyState === "live") || null;
+    if (!cameraTrack) return;
+    pcsRef.current.forEach((pc) => {
+      const sender = pc.getSenders().find((item) => item.track?.kind === "video");
+      if (sender) void sender.replaceTrack(cameraTrack).catch((error) => console.warn("RPcalls camera track restore failed", error));
+    });
+  };
+
   const toggleScreenShare = async () => {
     if (sharingScreen) {
-      screenStreamRef.current?.getTracks().forEach((track) => track.stop());
-      screenStreamRef.current = null;
-      setScreenStream(null);
-      setSharingScreen(false);
-      const cameraTrack = localStreamRef.current?.getVideoTracks()[0] || null;
-      pcsRef.current.forEach((pc) => {
-        const sender = pc.getSenders().find((item) => item.track?.kind === "video");
-        if (sender) void sender.replaceTrack(cameraTrack);
-      });
+      stopScreenShare();
       return;
     }
     if (!navigator.mediaDevices?.getDisplayMedia) {
@@ -1375,32 +1408,23 @@ export function App() {
     try {
       const share = await navigator.mediaDevices.getDisplayMedia({ video: true });
       const track = share.getVideoTracks()[0];
+      if (!track) {
+        share.getTracks().forEach((item) => item.stop());
+        throw new Error("Your browser did not provide a screen video track. Try sharing a window or entire screen.");
+      }
       screenStreamRef.current = share;
       setScreenStream(share);
       setSharingScreen(true);
-      pcsRef.current.forEach((pc) => {
-        const sender = pc.getSenders().find((item) => item.track?.kind === "video");
-        if (sender) void sender.replaceTrack(track);
-        else if (localStreamRef.current) {
-          pc.addTrack(track, share);
-          const remoteId = Array.from(pcsRef.current.entries()).find(([, value]) => value === pc)?.[0];
-          if (remoteId) {
-            if (peerIdRef.current.localeCompare(remoteId) < 0) void makeOffer(remoteId);
-            else void sendSignal({ to: remoteId, kind: "renegotiate-request" });
-          }
+      await trackPresence({ sharingScreen: true });
+      await Promise.all(Array.from(pcsRef.current.entries()).map(async ([remoteId, pc]) => {
+        try {
+          await replaceOutgoingVideoTrack(pc, remoteId, track, share);
+        } catch (error) {
+          console.warn("RPcalls screen track negotiation failed", error);
+          setMediaWarning("Screen sharing started, but it could not be sent to one or more participants. Try sharing again.");
         }
-      });
-      track.onended = () => {
-        screenStreamRef.current?.getTracks().forEach((item) => item.stop());
-        screenStreamRef.current = null;
-        setScreenStream(null);
-        setSharingScreen(false);
-        const cameraTrack = localStreamRef.current?.getVideoTracks()[0] || null;
-        pcsRef.current.forEach((pc) => {
-          const sender = pc.getSenders().find((item) => item.track?.kind === "video");
-          if (sender) void sender.replaceTrack(cameraTrack);
-        });
-      };
+      }));
+      track.onended = () => stopScreenShare();
     } catch (error: any) {
       if (error?.name !== "NotAllowedError") setMediaWarning(error?.message || "Could not start screen sharing.");
     }
@@ -1540,6 +1564,7 @@ export function App() {
 
   const remoteParticipants = participants.filter((person) => person.peerId !== peerId);
   const localPreview = screenStream || localStream;
+  const screenShareActive = sharingScreen || remoteParticipants.some((person) => person.sharingScreen === true);
   const totalParticipants = Math.max(participants.length, joined ? 1 : 0);
   const waitingParticipants = participants.filter((person) => person.peerId !== peerId && person.admitted === false && !person.isHost);
   const calendarCells = useMemo(() => {
@@ -1640,14 +1665,18 @@ export function App() {
   }
 
   if (joined && roomId) {
-    const allTiles = [
-      { id: peerId, name: identityRef.current.name || displayName || "You", stream: localPreview, local: true, cameraOn: sharingScreen || cameraOn, host: isHost },
+    const tiles = [
+      { id: peerId, name: identityRef.current.name || displayName || "You", stream: localPreview, local: true, cameraOn, micOn: !muted, screenSharing: sharingScreen, host: isHost },
       ...remoteParticipants.map((person) => ({
         id: person.peerId, name: person.name || "Guest",
         stream: remoteStreams[person.peerId] || null,
-        local: false, cameraOn: Boolean(person.cameraOn), host: Boolean(person.isHost),
+        local: false, cameraOn: Boolean(person.cameraOn), micOn: person.micOn, screenSharing: Boolean(person.sharingScreen), host: Boolean(person.isHost),
       })),
     ];
+    // Keep the shared screen first so it occupies the main, full-width stage.
+    const allTiles = screenShareActive
+      ? [...tiles.filter((tile) => tile.screenSharing), ...tiles.filter((tile) => !tile.screenSharing)]
+      : tiles;
     return (
       <div className="appShell meetingShell">
         <header className="meetingTopbar">
@@ -1673,9 +1702,9 @@ export function App() {
               <button className="subtleButton" type="button" onClick={() => setShowInvite(true)}><Link2 size={15} /> Meeting info</button>
             </div>
             {mediaWarning && <div className="inlineAlert"><AlertCircle size={16} /><span>{mediaWarning}</span><button type="button" onClick={() => setMediaWarning("")}><X size={14} /></button></div>}
-            <div className={`videoGrid ${allTiles.length===1?"oneTile":allTiles.length===2?"twoTiles":allTiles.length>4?"manyTiles":""}`}>
-              {allTiles.map((tile) => <VideoTile key={tile.id || "local"} name={tile.name} stream={tile.stream} muted={tile.local} local={tile.local} cameraOn={tile.cameraOn} isHost={tile.host} />)}
-              {allTiles.length === 1 && <button type="button" className="emptyGuestCard" onClick={() => setShowInvite(true)}><span className="emptyGuestIcon"><UserRoundPlus size={24} /></span><strong>You're the first one here</strong><span>{roomMode === "chat" ? "Share this chat link to start messaging with someone." : "Invite someone outside your organization with a link."}</span><b>Invite a guest <Plus size={14}/></b></button>}
+            <div className={`videoGrid ${allTiles.length===1?"oneTile":allTiles.length===2?"twoTiles":allTiles.length>4?"manyTiles":""} ${screenShareActive ? "screenShareActive" : ""}`}>
+              {allTiles.map((tile) => <VideoTile key={tile.id || "local"} name={tile.name} stream={tile.stream} muted={tile.local} local={tile.local} cameraOn={tile.cameraOn} micOn={tile.micOn} screenSharing={tile.screenSharing} isHost={tile.host} />)}
+              {allTiles.length === 1 && !screenShareActive && <button type="button" className="emptyGuestCard" onClick={() => setShowInvite(true)}><span className="emptyGuestIcon"><UserRoundPlus size={24} /></span><strong>You're the first one here</strong><span>{roomMode === "chat" ? "Share this chat link to start messaging with someone." : "Invite someone outside your organization with a link."}</span><b>Invite a guest <Plus size={14}/></b></button>}
             </div>
             <div className="meetingControlDock">
               <div className="dockLeft"><span className="meetingTime"><Wifi size={14}/>{connectionState}</span>
