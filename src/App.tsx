@@ -38,6 +38,7 @@ const randomId = (bytes = 20) => {
   return Array.from(values, (v) => v.toString(16).padStart(2, "0")).join("");
 };
 const hostStorageKey = (id: string) => `rpcalls:host:${id}`;
+const validHostRecordingToken = (value: string) => /^[a-f0-9]{64}$/.test(value);
 const safeName = (value: string) => value.trim().slice(0, 50);
 const localDateValue = (date: Date) => {
   const local = new Date(date.getTime() - date.getTimezoneOffset() * 60000);
@@ -206,13 +207,16 @@ export function App() {
 
   useEffect(() => {
     if (!roomId) return;
-    let savedHost = false;
-    try { savedHost = Boolean(sessionStorage.getItem(hostStorageKey(roomId))); } catch { /* restricted storage */ }
-    // Interviewer host links carry host=1. Preserve that capability through
-    // the roomId state update; otherwise this effect overwrites joinRoom's
-    // isHost=true with false before the host controls and recording can start.
-    const hostLink = new URLSearchParams(window.location.search).get("host") === "1";
-    setIsHost(savedHost || hostLink);
+    let savedHostToken = "";
+    try { savedHostToken = sessionStorage.getItem(hostStorageKey(roomId)) || ""; } catch { /* restricted storage */ }
+    const params = new URLSearchParams(window.location.search);
+    const linkToken = params.get("hostToken") || "";
+    const hostLink = params.get("host") === "1" && validHostRecordingToken(linkToken);
+    if (hostLink) {
+      savedHostToken = linkToken;
+      try { sessionStorage.setItem(hostStorageKey(roomId), linkToken); } catch { /* recording will report unavailable storage */ }
+    }
+    setIsHost(Boolean(savedHostToken) || hostLink);
   }, [roomId]);
 
   // RPcalls uses the same Supabase Auth project and profile records as RPportal.
@@ -750,9 +754,15 @@ export function App() {
     }
     const cleanName = safeName(displayName) || "Guest";
     const thisPeerId = randomId(12);
-    const host = hostOverride || Boolean(initialParams.get("host")) || (() => {
-      try { return Boolean(sessionStorage.getItem(hostStorageKey(targetRoomId))); } catch { return false; }
-    })();
+    const hostLinkToken = initialParams.get("hostToken") || "";
+    const validHostLink = initialParams.get("host") === "1" && validHostRecordingToken(hostLinkToken);
+    let storedHostToken = "";
+    try { storedHostToken = sessionStorage.getItem(hostStorageKey(targetRoomId)) || ""; } catch { /* restricted storage */ }
+    const host = hostOverride || validHostLink || Boolean(storedHostToken);
+    if (host) {
+      const token = validHostLink ? hostLinkToken : storedHostToken || randomId(24);
+      try { sessionStorage.setItem(hostStorageKey(targetRoomId), token); } catch { /* recording will report if storage is unavailable */ }
+    }
     const admitted = host || mode === "chat";
     const title = safeName(titleOverride || meetingTitle || "RPcalls meeting") || "RPcalls meeting";
     setBusy(true);
