@@ -1816,6 +1816,7 @@ export function App() {
         <nav className="primaryNav">
           <button type="button" className={meetingTab==="overview"?"selected":""} onClick={()=>setMeetingTab("overview")}><Sparkles size={18}/> Overview</button>
           <button type="button" className={meetingTab==="meetings"?"selected":""} onClick={()=>setMeetingTab("meetings")}><CalendarDays size={18}/> Calendar</button>
+          <a className="sidebarNavLink" href="https://rpchat2-m2z6zczyh-rp-test.vercel.app/redfin-workflow-lab" target="_blank" rel="noreferrer"><Link2 size={18}/> Redfin Workflow Lab</a>
         </nav>
         <div className="sidebarBottom"><div className="sidebarHelpCard"><span><Headphones size={17}/></span><strong>Need help?</strong><small>Check your connection and browser permissions.</small><button type="button" onClick={()=>setShowSettings(true)}>Connection settings <ArrowLeft size={13}/></button></div><div className="profileMini"><div className="profileMiniAvatar">{displayName.trim().charAt(0).toUpperCase()||"G"}</div><div><strong>{safeName(displayName)||"Guest user"}</strong><small>RPcalls guest</small></div><button type="button" aria-label="Profile options" onClick={()=>setShowSettings(true)}><MoreHorizontal size={17}/></button></div></div>
       </aside>
