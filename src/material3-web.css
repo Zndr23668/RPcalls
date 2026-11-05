@@ -1,0 +1,187 @@
+/* RPcalls — unified Material 3 Web foundation.
+   Tokens are the source of truth; feature styles below consume these roles. */
+:root{
+  color-scheme:light;
+  --md-sys-color-primary:#5557a8;
+  --md-sys-color-on-primary:#ffffff;
+  --md-sys-color-primary-container:#e2e0ff;
+  --md-sys-color-on-primary-container:#11114b;
+  --md-sys-color-secondary:#5d5d72;
+  --md-sys-color-on-secondary:#ffffff;
+  --md-sys-color-secondary-container:#e3e1f9;
+  --md-sys-color-on-secondary-container:#1a1a2c;
+  --md-sys-color-tertiary:#76546f;
+  --md-sys-color-tertiary-container:#ffd7f2;
+  --md-sys-color-error:#ba1a1a;
+  --md-sys-color-error-container:#ffdad6;
+  --md-sys-color-on-error-container:#410002;
+  --md-sys-color-background:#f8f7fc;
+  --md-sys-color-on-background:#1b1b22;
+  --md-sys-color-surface:#f8f7fc;
+  --md-sys-color-surface-dim:#d9d8e0;
+  --md-sys-color-surface-bright:#f8f7fc;
+  --md-sys-color-surface-container-lowest:#ffffff;
+  --md-sys-color-surface-container-low:#f2f1f7;
+  --md-sys-color-surface-container:#ecebf2;
+  --md-sys-color-surface-container-high:#e6e5ed;
+  --md-sys-color-surface-container-highest:#e0dfe7;
+  --md-sys-color-on-surface:#1b1b22;
+  --md-sys-color-on-surface-variant:#464650;
+  --md-sys-color-outline:#777783;
+  --md-sys-color-outline-variant:#c7c5d0;
+  --md-sys-color-inverse-surface:#303038;
+  --md-sys-color-inverse-on-surface:#f1f0f7;
+  --md-sys-color-inverse-primary:#c2c3ff;
+  --md-sys-color-scrim:#000000;
+  --md-sys-color-shadow:#000000;
+  --md-sys-color-success:#286b52;
+  --md-sys-color-success-container:#b0f1d1;
+  --md-sys-color-warning:#795900;
+  --md-sys-color-warning-container:#ffdfa0;
+  --rp-canvas:var(--md-sys-color-background);
+  --rp-surface:var(--md-sys-color-surface-container-lowest);
+  --rp-surface-low:var(--md-sys-color-surface-container-low);
+  --rp-surface-mid:var(--md-sys-color-surface-container);
+  --rp-surface-high:var(--md-sys-color-surface-container-high);
+  --rp-ink:var(--md-sys-color-on-surface);
+  --rp-muted:var(--md-sys-color-on-surface-variant);
+  --rp-line:var(--md-sys-color-outline-variant);
+  --rp-primary:var(--md-sys-color-primary);
+  --rp-primary-hover:#44468f;
+  --rp-primary-soft:var(--md-sys-color-primary-container);
+  --rp-radius-xs:8px;--rp-radius-sm:12px;--rp-radius-md:16px;--rp-radius-lg:24px;--rp-radius-xl:28px;
+  --rp-motion-fast:150ms;--rp-motion-medium:250ms;--rp-motion-emphasized:cubic-bezier(.2,0,0,1);
+  font-family:"DM Sans",Roboto,Arial,sans-serif;
+  color:var(--rp-ink);
+  background:var(--rp-canvas);
+}
+html[data-theme="dark"],html.dark,body[data-theme="dark"]{
+  color-scheme:dark;
+  --md-sys-color-primary:#c2c3ff;--md-sys-color-on-primary:#292a78;
+  --md-sys-color-primary-container:#3f418f;--md-sys-color-on-primary-container:#e2e0ff;
+  --md-sys-color-secondary:#c6c5dd;--md-sys-color-on-secondary:#2f3042;
+  --md-sys-color-secondary-container:#45465a;--md-sys-color-on-secondary-container:#e3e1f9;
+  --md-sys-color-tertiary:#e5b9d8;--md-sys-color-tertiary-container:#5c3b55;
+  --md-sys-color-error:#ffb4ab;--md-sys-color-error-container:#93000a;--md-sys-color-on-error-container:#ffdad6;
+  --md-sys-color-background:#121218;--md-sys-color-on-background:#e5e1e9;
+  --md-sys-color-surface:#121218;--md-sys-color-surface-dim:#121218;--md-sys-color-surface-bright:#39383f;
+  --md-sys-color-surface-container-lowest:#0d0d13;--md-sys-color-surface-container-low:#1b1b22;
+  --md-sys-color-surface-container:#201f27;--md-sys-color-surface-container-high:#2a2931;--md-sys-color-surface-container-highest:#35343c;
+  --md-sys-color-on-surface:#e5e1e9;--md-sys-color-on-surface-variant:#c7c5d0;
+  --md-sys-color-outline:#918f9a;--md-sys-color-outline-variant:#464650;
+  --md-sys-color-inverse-surface:#e5e1e9;--md-sys-color-inverse-on-surface:#303038;--md-sys-color-inverse-primary:#5557a8;
+  --md-sys-color-success:#8bd5b3;--md-sys-color-success-container:#164f3a;
+  --md-sys-color-warning:#e8c36b;--md-sys-color-warning-container:#594300;
+}
+@media(prefers-color-scheme:dark){
+  html:not([data-theme="light"]):not([data-theme="dark"]):not(.light){
+    color-scheme:dark;
+    --md-sys-color-primary:#c2c3ff;--md-sys-color-on-primary:#292a78;--md-sys-color-primary-container:#3f418f;--md-sys-color-on-primary-container:#e2e0ff;
+    --md-sys-color-secondary:#c6c5dd;--md-sys-color-secondary-container:#45465a;--md-sys-color-tertiary:#e5b9d8;--md-sys-color-tertiary-container:#5c3b55;
+    --md-sys-color-background:#121218;--md-sys-color-surface:#121218;--md-sys-color-surface-container-lowest:#0d0d13;--md-sys-color-surface-container-low:#1b1b22;--md-sys-color-surface-container:#201f27;--md-sys-color-surface-container-high:#2a2931;--md-sys-color-surface-container-highest:#35343c;
+    --md-sys-color-on-background:#e5e1e9;--md-sys-color-on-surface:#e5e1e9;--md-sys-color-on-surface-variant:#c7c5d0;--md-sys-color-outline:#918f9a;--md-sys-color-outline-variant:#464650;--md-sys-color-success:#8bd5b3;--md-sys-color-warning:#e8c36b;
+  }
+}
+*{box-sizing:border-box}
+html,body,#root{background:var(--rp-canvas);color:var(--rp-ink)}
+body{font-family:"DM Sans",Roboto,Arial,sans-serif}
+.appShell,.homeMain,.meetingShell,.meetingWorkspace,.meetingStage{color:var(--rp-ink)}
+.appSidebar,.homeTopbar,.meetingTopbar,.authGateCard,.joinCard,.calendarCard,.calendarMeetingsCard,
+.quickActionCard,.joinByLinkCard,.sidebarHelpCard,.meetingEmptyState,.emptyGuestCard,
+.callControls,.chatPanel,.peoplePanel,.dialog,.modal,.settingsPanel,.calendarMeetingsHeader,
+.calendarMeetingRow,.calendarMonthHeader,.calendarMonthControls,.authGateCard{
+  background-color:var(--rp-surface);border-color:var(--rp-line)
+}
+.appSidebar{background:var(--md-sys-color-surface-container-low);border-right-color:var(--rp-line)}
+.homeTopbar,.meetingTopbar{background:var(--rp-surface);backdrop-filter:none;border-bottom-color:var(--rp-line)}
+.homeHero{background:linear-gradient(125deg,var(--rp-surface),var(--rp-surface-low));border-color:var(--rp-line)}
+.homeHero h1,.meetingsPageHeading h1,.sectionHeading h2,.stageHeading h1,.meetingTitleBlock strong,
+.authGateCard h1,.guestJoinCard h1{color:var(--rp-ink)}
+.homeHero h1 em,.heroTag,.heroTrust svg,.homeFooter button:hover{color:var(--rp-primary)}
+.homeHero p,.sectionHeading>span,.quickActionCard small,.joinByCopy span,.crumb,.topbarStatus,
+.meetingTitleBlock>span,.stageHeading p:not(.eyebrow),.meetingEmptyState p,.eyebrow,
+.homeFooter,.calendarMeetingInfo>small{color:var(--rp-muted)}
+.brandMark{background:var(--rp-primary);color:var(--md-sys-color-on-primary)}
+.brandWordmark small,.brandWordmark strong{color:var(--rp-ink)}
+.primaryButton,.sidebarNewMeeting,.calendarJoinButton{background:var(--rp-primary);border-color:var(--rp-primary);color:var(--md-sys-color-on-primary)}
+.primaryButton:hover,.sidebarNewMeeting:hover,.calendarJoinButton:hover{background:var(--rp-primary-hover);border-color:var(--rp-primary-hover)}
+.secondaryButton,.outlineButton,.subtleButton,.authSignOutButton,.iconButton,.dockIcon,
+.calendarMonthControls button,.calendarLinkButton{background:var(--rp-surface);border-color:var(--rp-line);color:var(--rp-muted)}
+.secondaryButton:hover,.outlineButton:hover,.subtleButton:hover,.iconButton:hover,.dockIcon:hover,
+.calendarMonthControls button:hover,.calendarLinkButton:hover{background:var(--rp-surface-high);border-color:var(--md-sys-color-outline);color:var(--rp-ink)}
+.primaryNav button,.primaryNav .sidebarNavLink{color:var(--rp-muted)}
+.primaryNav button svg,.primaryNav .sidebarNavLink svg{color:var(--rp-muted)}
+.primaryNav button:hover,.primaryNav .sidebarNavLink:hover{background:var(--rp-surface-high);color:var(--rp-ink)}
+.primaryNav button.selected{background:var(--rp-primary-soft);color:var(--md-sys-color-on-primary-container)}
+.primaryNav button.selected svg{color:var(--rp-primary)}
+.quickActionCard,.joinByLinkCard,.calendarCard,.calendarMeetingsCard,.authGateCard,.guestJoinCard,
+.meetingEmptyState,.sidebarHelpCard{border:1px solid var(--rp-line);border-radius:var(--rp-radius-lg)}
+.quickActionCard:hover{border-color:var(--md-sys-color-outline);background:var(--rp-surface-low)}
+.quickIcon,.joinByIcon,.sidebarHelpCard>span,.meetingEmptyState>span,.emptyGuestIcon,
+.calendarCount,.meetingDateBadge,.profileMiniAvatar,.topAvatar{background:var(--rp-primary-soft);color:var(--rp-primary)}
+.quickIcon.blue{background:var(--md-sys-color-secondary-container);color:var(--md-sys-color-secondary)}
+.quickIcon.orange{background:var(--md-sys-color-tertiary-container);color:var(--md-sys-color-tertiary)}
+.joinByLinkCard input,.fieldLabel input,.authGateForm .fieldLabel input,.guestJoinForm .fieldLabel input,
+.chatComposer textarea,.chatSearchInput,.settingsInput,.fieldLabel textarea,.fieldLabel select{
+  color:var(--rp-ink);background:var(--rp-surface-low);border:1px solid var(--rp-line);border-radius:var(--rp-radius-sm)
+}
+input::placeholder,textarea::placeholder{color:var(--rp-muted);opacity:.78}
+input:focus-visible,textarea:focus-visible,select:focus-visible,button:focus-visible,a:focus-visible{
+  outline:3px solid color-mix(in srgb,var(--rp-primary) 35%,transparent);outline-offset:2px
+}
+.joinByLinkCard input:focus,.fieldLabel input:focus,.authGateForm .fieldLabel input:focus,
+.guestJoinForm .fieldLabel input:focus{border-color:var(--rp-primary);box-shadow:none}
+.meetingShell{background:var(--rp-canvas)}
+.meetingWorkspace{background:transparent}
+.videoTile{border-color:var(--rp-line);box-shadow:none}
+.videoTile:nth-child(4n+2),.videoTile:nth-child(4n+3),.videoTile:nth-child(4n+4){border-color:var(--rp-line)}
+.videoAvatar{background:var(--rp-primary);border-color:color-mix(in srgb,var(--rp-surface) 65%,transparent)}
+.videoAvatarStage{background:radial-gradient(circle at center,color-mix(in srgb,var(--rp-primary-soft) 70%,transparent),transparent 66%)}
+.videoAvatarStage>span{color:var(--rp-muted)}
+.callControls{background:var(--rp-surface);border-color:var(--rp-line)}
+.controlButton{color:var(--rp-muted)}
+.controlButton>span{background:var(--rp-surface-high);color:var(--rp-ink)}
+.controlButton:hover{background:var(--rp-surface-low);color:var(--rp-ink)}
+.controlButton.activeControl,.controlButton.activeControl>span{background:var(--rp-primary-soft);color:var(--rp-primary)}
+.controlButton.isOff,.controlButton.isOff>span{background:var(--md-sys-color-error-container);color:var(--md-sys-color-error)}
+.endCallButton{background:var(--md-sys-color-error);color:#fff}
+.calendarDay{color:var(--rp-ink)}
+.calendarDay:hover,.calendarDay.hasCalendarEvent{background:var(--rp-surface-low)}
+.calendarDay.isToday .calendarDayNumber{background:var(--rp-primary);color:var(--md-sys-color-on-primary)}
+.calendarEventDots i,.calendarLegend i,.calendarLegend .calendarLegendLive{background:var(--rp-primary)}
+.calendarStatus{background:var(--rp-primary-soft);color:var(--rp-primary)}
+.calendarStatus.ended{background:var(--rp-surface-high);color:var(--rp-muted)}
+.meetingPolicyNote{background:var(--md-sys-color-success-container);color:var(--md-sys-color-success)}
+.inlineAlert{background:var(--md-sys-color-warning-container);border-color:var(--rp-line);color:var(--md-sys-color-warning)}
+.authGateError{background:var(--md-sys-color-error-container);border-color:var(--rp-line);color:var(--md-sys-color-error)}
+.recordingBadge{background:var(--md-sys-color-error-container);border-color:var(--rp-line);color:var(--md-sys-color-error)}
+.recordingBadge>span{box-shadow:none}
+.uploadingBadge{background:var(--md-sys-color-warning-container);color:var(--md-sys-color-warning)}
+/* Replace stacked shadows with Material tonal surfaces; preserve focus and status rings. */
+.brandMark,.sidebarNewMeeting,.primaryButton,.visualWindow,.floatChip,.quickActionCard,
+.callControls,.videoTile,.videoAvatar,.authGateCard,.joinCard,.bauhausOrb,.recordingBadge,
+.guestJoinPage .joinCard,.waitingRoomPage .joinCard{box-shadow:none!important}
+.appSidebar,.homeTopbar,.meetingTopbar,.quickActionCard,.joinByLinkCard,.calendarCard,
+.calendarMeetingsCard,.authGateCard,.joinCard,.callControls,.dialog,.modal,.settingsPanel{
+  box-shadow:none!important
+}
+.appSidebar,.homeTopbar,.meetingTopbar{background-color:var(--rp-surface-low)}
+.guestJoinPage,.waitingRoomPage,.authGatePage{background:var(--rp-canvas)}
+.guestJoinPage .joinHeader,.waitingRoomPage .joinHeader,.authGatePage .joinHeader{
+  background:color-mix(in srgb,var(--rp-surface) 92%,transparent);backdrop-filter:blur(12px)
+}
+.guestJoinPage .joinCard,.waitingRoomPage .joinCard,.authGatePage .authGateCard{
+  background:var(--rp-surface);border-color:var(--rp-line);backdrop-filter:none
+}
+.bauhausBackdrop{opacity:.12}
+body::before{background-color:var(--rp-canvas);opacity:.32}
+body::after{opacity:.08}
+.floatChip{background:var(--rp-surface);border-color:var(--rp-line);color:var(--rp-ink)}
+.heroTag>span:first-child{background:var(--rp-primary)}
+@media(max-width:760px){
+  .appSidebar{background:var(--rp-surface-low)}
+  .homeTopbar{background:var(--rp-surface)}
+}
+@media(prefers-reduced-motion:reduce){
+  *,*::before,*::after{scroll-behavior:auto!important;animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important}
+}
