@@ -178,3 +178,37 @@ body::after{opacity:.08}
   --rp-canvas:#f8f7fc;--rp-surface:#ffffff;--rp-surface-low:#f2f1f7;--rp-surface-mid:#ecebf2;--rp-surface-high:#e6e5ed;
   --rp-ink:#1b1b22;--rp-muted:#464650;--rp-line:#c7c5d0;--rp-primary:#5557a8;--rp-primary-hover:#44468f;--rp-primary-soft:#e2e0ff;
 }
+
+
+/* Stronger, more legible Bauhaus atmosphere on both sign-in and workspace screens. */
+body::before{
+  opacity:.92!important;
+  background-image:
+    radial-gradient(circle at var(--bauhaus-red-x) var(--bauhaus-red-y),rgba(239,76,66,.23) 0 9rem,transparent 9.3rem),
+    radial-gradient(circle at var(--bauhaus-blue-x) var(--bauhaus-blue-y),rgba(53,111,202,.22) 0 12rem,transparent 12.3rem),
+    radial-gradient(circle at var(--bauhaus-yellow-x) var(--bauhaus-yellow-y),rgba(242,190,65,.25) 0 6.2rem,transparent 6.5rem),
+    linear-gradient(118deg,transparent 0 47%,rgba(32,36,55,.075) 47.1% 47.4%,transparent 47.5% 100%),
+    linear-gradient(28deg,transparent 0 66%,rgba(32,36,55,.065) 66.1% 66.4%,transparent 66.5% 100%);
+}
+body::after{opacity:.34!important}
+.homeShell,.homeMain,.homeContent{background:transparent}
+.homeHero{
+  background:
+    radial-gradient(ellipse at 86% 12%,rgba(173,166,255,.30),transparent 36%),
+    linear-gradient(120deg,rgba(255,255,255,.94),rgba(246,245,255,.86))!important;
+}
+.authGatePage,.guestJoinPage,.waitingRoomPage{background:transparent!important}
+.authGatePage .bauhausBackdrop,.guestJoinPage .bauhausBackdrop,.waitingRoomPage .bauhausBackdrop{
+  opacity:.72!important;
+  filter:saturate(1.12);
+}
+.authGatePage .authGateCard{
+  background:rgba(255,255,255,.88)!important;
+  border-color:rgba(255,255,255,.9)!important;
+  backdrop-filter:blur(22px);
+}
+@media(max-width:760px){
+  body::before{opacity:.78!important}
+  body::after{opacity:.24!important}
+  .authGatePage .bauhausBackdrop,.guestJoinPage .bauhausBackdrop,.waitingRoomPage .bauhausBackdrop{opacity:.58!important}
+}
