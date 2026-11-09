@@ -220,50 +220,80 @@ export function App() {
   }, [roomId]);
 
   // RPcalls uses the same Supabase Auth project and profile records as RPportal.
+  // Process a one-time portal handoff BEFORE reading the persisted session. Running
+  // getSession() and verifyOtp() concurrently can let an early null session overwrite
+  // the newly verified SSO session, leaving the user at the sign-in screen.
   useEffect(() => {
     if (!supabase) {
       setAuthUser(null);
       setAuthStatus("signed-out");
+      setAuthInitialized(true);
       return;
     }
+
     let mounted = true;
-    void supabase.auth.getSession().then(({ data }) => {
-      if (mounted) {
-        setAuthUser(data.session?.user ? { id: data.session.user.id, email: data.session.user.email } : null);
+    const params = new URLSearchParams(window.location.search);
+    const tokenHash = params.get("sso_token_hash");
+    const tokenType = params.get("sso_type");
+    const hasHandoff = Boolean(tokenHash && tokenType === "magiclink");
+
+    if (hasHandoff) {
+      params.delete("sso_token_hash");
+      params.delete("sso_type");
+      const cleaned = window.location.pathname + (params.toString() ? "?" + params.toString() : "") + window.location.hash;
+      window.history.replaceState(null, "", cleaned);
+    }
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      if (!mounted) return;
+      // The SDK may emit an empty INITIAL_SESSION while the one-time token is
+      // being verified. Do not let that transient event erase the SSO result.
+      if (hasHandoff && event === "INITIAL_SESSION" && !session) return;
+      setAuthUser(session?.user ? { id: session.user.id, email: session.user.email } : null);
+      setAuthInitialized(true);
+    });
+
+    const initialize = async () => {
+      try {
+        if (hasHandoff && tokenHash) {
+          const { data, error } = await supabase.auth.verifyOtp({ token_hash: tokenHash, type: "magiclink" });
+          if (!mounted) return;
+          const user = data?.user || data?.session?.user;
+          if (error || !user) {
+            setAuthUser(null);
+            setAuthError("Your RPportal sign-in handoff expired or could not be verified. Return to RPportal and try again.");
+          } else {
+            setAuthUser({ id: user.id, email: user.email });
+            setAuthError("");
+          }
+          setAuthInitialized(true);
+          return;
+        }
+
+        const { data, error } = await supabase.auth.getSession();
+        if (!mounted) return;
+        if (error) {
+          setAuthUser(null);
+          setAuthError("Could not restore your RPportal session. Please refresh and try again.");
+        } else {
+          setAuthUser(data.session?.user ? { id: data.session.user.id, email: data.session.user.email } : null);
+        }
         setAuthInitialized(true);
-      }
-    }).catch(() => {
-      if (mounted) {
+      } catch {
+        if (!mounted) return;
         setAuthUser(null);
         setAuthInitialized(true);
+        setAuthError(hasHandoff
+          ? "Your RPportal sign-in handoff could not be verified. Return to RPportal and try again."
+          : "Could not restore your RPportal session. Please refresh and try again.");
       }
-    });
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      if (mounted) {
-        setAuthUser(session?.user ? { id: session.user.id, email: session.user.email } : null);
-        setAuthInitialized(true);
-      }
-    });
+    };
+
+    void initialize();
     return () => {
       mounted = false;
       subscription.unsubscribe();
     };
-  }, []);
-
-  // Consume the short-lived, single-use Supabase SSO token immediately and remove it from the address bar.
-  useEffect(() => {
-    if (!supabase) return;
-    const params = new URLSearchParams(window.location.search);
-    const tokenHash = params.get("sso_token_hash");
-    const tokenType = params.get("sso_type");
-    if (!tokenHash || tokenType !== "magiclink") return;
-    params.delete("sso_token_hash");
-    params.delete("sso_type");
-    const cleaned = window.location.pathname + (params.toString() ? "?" + params.toString() : "") + window.location.hash;
-    window.history.replaceState(null, "", cleaned);
-    void supabase.auth.verifyOtp({ token_hash: tokenHash, type: "magiclink" }).then(({ error }) => {
-      if (error) setAuthError("Your sign-in handoff expired or was already used. Open RPportal and try again.");
-    });
   }, []);
 
   // Do not automatically bounce signed-out visitors between the two apps.
