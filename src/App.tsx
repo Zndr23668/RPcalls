@@ -224,7 +224,8 @@ export function App() {
   // getSession() and verifyOtp() concurrently can let an early null session overwrite
   // the newly verified SSO session, leaving the user at the sign-in screen.
   useEffect(() => {
-    if (!supabase) {
+    const authClient = supabase;
+    if (!authClient) {
       setAuthUser(null);
       setAuthStatus("signed-out");
       setAuthInitialized(true);
@@ -244,7 +245,7 @@ export function App() {
       window.history.replaceState(null, "", cleaned);
     }
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+    const { data: { subscription } } = authClient.auth.onAuthStateChange((event, session) => {
       if (!mounted) return;
       // The SDK may emit an empty INITIAL_SESSION while the one-time token is
       // being verified. Do not let that transient event erase the SSO result.
@@ -256,7 +257,7 @@ export function App() {
     const initialize = async () => {
       try {
         if (hasHandoff && tokenHash) {
-          const { data, error } = await supabase.auth.verifyOtp({ token_hash: tokenHash, type: "magiclink" });
+          const { data, error } = await authClient.auth.verifyOtp({ token_hash: tokenHash, type: "magiclink" });
           if (!mounted) return;
           const user = data?.user || data?.session?.user;
           if (error || !user) {
@@ -270,7 +271,7 @@ export function App() {
           return;
         }
 
-        const { data, error } = await supabase.auth.getSession();
+        const { data, error } = await authClient.auth.getSession();
         if (!mounted) return;
         if (error) {
           setAuthUser(null);
